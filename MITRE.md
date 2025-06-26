@@ -1,3 +1,87 @@
+<details><summary>Reconnaissance</summary>
+  
+---
+
+</details>
+
+<details><summary>Resource Development</summary>
+  
+---
+
+</details>
+
+<details><summary>Initial Access</summary>
+  
+---
+
+</details>
+
+<details><summary>Execution</summary>
+  
+---
+
+</details>
+
+<details><summary>Persistence</summary>
+  
+---
+
+</details>
+
+<details><summary>Privilege Escalation</summary>
+  
+---
+
+</details>
+
+<details><summary>Defense Evasion</summary>
+  
+---
+
+</details>
+
+<details><summary>Credential Access</summary>
+  
+---
+
+</details>
+
+<details><summary>Discovery</summary>
+  
+---
+
+</details>
+
+<details><summary>Lateral Movement</summary>
+  
+---
+
+</details>
+
+<details><summary>Collection</summary>
+  
+---
+
+</details>
+
+<details><summary>Command and Control</summary>
+  
+---
+
+</details>
+
+<details><summary>Exfiltration</summary>
+  
+---
+
+</details>
+
+<details><summary>Impact</summary>
+  
+---
+
+</details>
+
 <details><summary>Suspicious File Transfers Over SMB</summary>
   
 ```plaintext
