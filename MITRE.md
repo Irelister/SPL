@@ -8,37 +8,37 @@
   
 ---
 
-    <details><summary>T1584 - Compromise Infrastructure</summary>
-    
-    <br>
-    
-    1. Multiple Domains Resolve to the same IP.
-    ```spl
-    index=central_summary source=summary_dns_with_answers 
-    | stats dc(query) as domain_count by answer 
-    | where domain_count > 10 
-    ```
-    2. Rare JA3 and JA3S TLS Fingerprints
-    ```spl
-    index=central_summary source=summary_ssl 
-    | stats count by ja3, ja3s, dest_ip 
-    | where count < 5 
-    ```
-    3. Unusual HTTP Hosts or Repeating POSTS Requests
-    ```spl
-    index=bro sourcetype=corelight_http 
-    | search method=POST 
-    | stats count by src_ip, dest_ip, host_header, uri, user_agent 
-    | where count > 20 
-    ```
-    4. High Volume, Long-Lived Peer-to-Peer Connections
-    ```spl
-    index=bro sourcetype=corelight_conn 
-    | search duration > 300 
-    | stats count by src_ip, dest_ip, duration, service 
-    | where count > 20 
-    ```
-    </details>
+<details><summary>T1584 - Compromise Infrastructure</summary>
+
+<br>
+
+1. Multiple Domains Resolve to the same IP.
+```spl
+index=central_summary source=summary_dns_with_answers 
+| stats dc(query) as domain_count by answer 
+| where domain_count > 10 
+```
+2. Rare JA3 and JA3S TLS Fingerprints
+```spl
+index=central_summary source=summary_ssl 
+| stats count by ja3, ja3s, dest_ip 
+| where count < 5 
+```
+3. Unusual HTTP Hosts or Repeating POSTS Requests
+```spl
+index=bro sourcetype=corelight_http 
+| search method=POST 
+| stats count by src_ip, dest_ip, host_header, uri, user_agent 
+| where count > 20 
+```
+4. High Volume, Long-Lived Peer-to-Peer Connections
+```spl
+index=bro sourcetype=corelight_conn 
+| search duration > 300 
+| stats count by src_ip, dest_ip, duration, service 
+| where count > 20 
+```
+</details>
 </details>
 
 <details><summary>Initial Access</summary>
@@ -78,6 +78,50 @@ index=bro sourcetype=corelight_ldap
 index=bro sourcetype=corelight_smb_files
 | search filename="\\windows\\system32\\config\\sam"
 | stats count by id.orig_h, id.resp_h, filename, action, _time
+```
+</details>
+
+<details><summary>T1505 - Server Software Component</summary>
+
+<br>
+
+1. Web shells often receive commands via POST.
+```spl
+index=bro sourcetype=corelight_http 
+| search method=POST
+| search uri IN ("*.php*", "*.aspx*", "*.jsp*", "*cmd*", "*eval*", "*shell*")
+| stats count by id.orig_h, id.resp_h, uri, user_agent, method, status_code, _time
+```
+2. Look for indicators in query strings or URIs.
+```spl
+index=bro sourcetype=corelight_http
+| search uri IN ("*cmd=*", "*exec*", "*eval*", "*shell*", "*.php", "*.asp", "*.jsp")
+| stats count by id.orig_h, id.resp_h, uri, user_agent, referrer, status_code, _time
+```
+3. Web shells are often uploaded through file upload features.
+```spl
+index=bro sourcetype=corelight_http 
+| search method=POST uri IN ("*/upload*", "*/admin*", "*/file*", "*.php*", "*.asp*")
+| stats count by id.orig_h, id.resp_h, uri, user_agent, status_code, content_type, _time
+```
+4. Newly Seen Files in Webroot (e.g., .php or .jsp)
+```spl
+index=bro sourcetype=corelight_files 
+| search filename IN ("*.php", "*.jsp", "*.asp", "*.aspx")
+| stats count by id.orig_h, id.resp_h, filename, mime_type, seen_bytes, _time
+```
+5. SMB File Writes to Webroot (If logs available)
+```spl
+index=bro sourcetype=corelight_smb_files 
+| search filename IN ("*.php", "*.asp", "*.jsp") AND action="WRITE"
+| stats count by id.orig_h, id.resp_h, filename, action, _time
+```
+6. Large response sizes from small POSTs (Shell response)
+```spl
+index=bro sourcetype=corelight_http
+| eval ratio=response_body_len/request_body_len 
+| where method="POST" AND ratio > 10
+| stats count by id.orig_h, id.resp_h, uri, user_agent, ratio, _time
 ```
 </details>
 </details>
@@ -123,6 +167,52 @@ index=bro sourcetype=corelight_smb_files
 >```
 ></details>
 
+<details><summary>T1069 - Permission Groups Discovery</summary>
+
+<br>
+
+1. 
+```spl
+index=bro sourcetype=corelight_ldap
+| search base_dn="CN=Users*" OR base_dn="CN=Groups*" OR query IN ("memberOf", "primaryGroupID")
+| stats count by id.orig_h, base_dn, query, result, _time
+```
+2. Suspicious enumeration may cause high volumes of TGS-REQ to services like ldap, cifs, krbtgt, etc.
+```spl
+index=bro sourcetype=corelight_kerberos
+| search service IN ("ldap", "krbtgt", "cifs")
+| stats count by id.orig_h, id.resp_h, client, service, request_type, _time
+```
+3. Common during domain reconnaissance
+```spl
+index=bro sourcetype=corelight_dns 
+| search query IN ("_ldap._tcp.*", "_kerberos._tcp.*", "*dc._msdcs*")
+| stats count by id.orig_h, query, qtype_name, _time
+```
+4. These shares are often accessed during domain enumeration or GPO gathering.
+```spl
+index=bro sourcetype=corelight_smb_mapping
+| search path IN ("\\*\\SYSVOL", "\\*\\NETLOGON")
+| stats count by id.orig_h, id.resp_h, path, share_type, _time
+```
+5. Look for one IP performing a lot of queries.
+```spl
+index=bro sourcetype=corelight_ldap OR sourcetype=corelight_kerberos
+| stats count by id.orig_h, sourcetype, _time
+| where count > 100
+```
+6. Movement of Suspicious Files via SMB
+```spl
+index=zeek sourcetype=zeek_smb_files
+| search filename IN ("\\windows\\system32\\config\\sam", "\\windows\\system32\\config\\system")
+| stats count by id.orig_h, id.resp_h, filename, action, _time
+```
+7. Find High Volume SMB Mapping Commands
+```spl
+index=zeek sourcetype=zeek_smb_mapping
+| stats count by id.orig_h, id.resp_h, path, share_type, _time
+```
+</details>
 </details>
 
 <details><summary>Lateral Movement</summary>
@@ -264,95 +354,6 @@ index=zeek sourcetype=zeek:files
 
 Combine weird transfer with off process creations if possible.  
 Look for NTFS Alternate Data streams. Detectable if SMB logs show file::$DATA in the filename.
-
-<details><summary>T1069 - Permission Groups Discovery</summary>
-
----
-1. 
-```spl
-index=bro sourcetype=corelight_ldap
-| search base_dn="CN=Users*" OR base_dn="CN=Groups*" OR query IN ("memberOf", "primaryGroupID")
-| stats count by id.orig_h, base_dn, query, result, _time
-```
-2. Suspicious enumeration may cause high volumes of TGS-REQ to services like ldap, cifs, krbtgt, etc.
-```spl
-index=bro sourcetype=corelight_kerberos
-| search service IN ("ldap", "krbtgt", "cifs")
-| stats count by id.orig_h, id.resp_h, client, service, request_type, _time
-```
-3. Common during domain reconnaissance
-```spl
-index=bro sourcetype=corelight_dns 
-| search query IN ("_ldap._tcp.*", "_kerberos._tcp.*", "*dc._msdcs*")
-| stats count by id.orig_h, query, qtype_name, _time
-```
-4. These shares are often accessed during domain enumeration or GPO gathering.
-```spl
-index=bro sourcetype=corelight_smb_mapping
-| search path IN ("\\*\\SYSVOL", "\\*\\NETLOGON")
-| stats count by id.orig_h, id.resp_h, path, share_type, _time
-```
-5. Look for one IP performing a lot of queries.
-```spl
-index=bro sourcetype=corelight_ldap OR sourcetype=corelight_kerberos
-| stats count by id.orig_h, sourcetype, _time
-| where count > 100
-```
-6. Movement of Suspicious Files via SMB
-```spl
-index=zeek sourcetype=zeek_smb_files
-| search filename IN ("\\windows\\system32\\config\\sam", "\\windows\\system32\\config\\system")
-| stats count by id.orig_h, id.resp_h, filename, action, _time
-```
-7. Find High Volume SMB Mapping Commands
-```spl
-index=zeek sourcetype=zeek_smb_mapping
-| stats count by id.orig_h, id.resp_h, path, share_type, _time
-```
-</details>
-
-<details><summary>T1505.003 - Server Software Component</summary>
-
----
-1. Web shells often receive commands via POST.
-```spl
-index=bro sourcetype=corelight_http 
-| search method=POST
-| search uri IN ("*.php*", "*.aspx*", "*.jsp*", "*cmd*", "*eval*", "*shell*")
-| stats count by id.orig_h, id.resp_h, uri, user_agent, method, status_code, _time
-```
-2. Look for indicators in query strings or URIs.
-```spl
-index=bro sourcetype=corelight_http
-| search uri IN ("*cmd=*", "*exec*", "*eval*", "*shell*", "*.php", "*.asp", "*.jsp")
-| stats count by id.orig_h, id.resp_h, uri, user_agent, referrer, status_code, _time
-```
-3. Web shells are often uploaded through file upload features.
-```spl
-index=bro sourcetype=corelight_http 
-| search method=POST uri IN ("*/upload*", "*/admin*", "*/file*", "*.php*", "*.asp*")
-| stats count by id.orig_h, id.resp_h, uri, user_agent, status_code, content_type, _time
-```
-4. Newly Seen Files in Webroot (e.g., .php or .jsp)
-```spl
-index=bro sourcetype=corelight_files 
-| search filename IN ("*.php", "*.jsp", "*.asp", "*.aspx")
-| stats count by id.orig_h, id.resp_h, filename, mime_type, seen_bytes, _time
-```
-5. SMB File Writes to Webroot (If logs available)
-```spl
-index=bro sourcetype=corelight_smb_files 
-| search filename IN ("*.php", "*.asp", "*.jsp") AND action="WRITE"
-| stats count by id.orig_h, id.resp_h, filename, action, _time
-```
-6. Large response sizes from small POSTs (Shell response)
-```spl
-index=bro sourcetype=corelight_http
-| eval ratio=response_body_len/request_body_len 
-| where method="POST" AND ratio > 10
-| stats count by id.orig_h, id.resp_h, uri, user_agent, ratio, _time
-```
-</details>
 
 
 
