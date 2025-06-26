@@ -136,15 +136,54 @@ index=bro sourcetype=corelight_http
   
 ---
 
-  <details><summary>T1564 - Hide Artifacts</summary>
-  
-  <br>
-  
-  1. 
-  ```spl
-  
-  ```
-  </details>
+><details><summary>T1564 - Hide Artifacts</summary>
+>  
+><br>
+>  
+>1. Detect unusual Port Usage for Known Protocols.
+>```spl
+>index=bro sourcetype=corelight_conn
+>| eval unusual_port=( (service="http" AND id.resp_p!=80) OR (service="https" AND id.resp_p!=443) )
+>| where unusual_port
+>| stats count by id.orig_h, id.resp_h, service, id.resp_p
+>```
+>
+>2. Detect suspicious TLS Without SNI (Server Name Indication)
+>```spl
+>index=bro sourcetype=corelight_ssl
+>| where isnull(server_name)
+>| stats count by id.orig_h, id.resp_h
+>```
+>
+>3. Detect HTTP with Suspicious User-Agents or Missing Headers
+>```spl
+>index=bro sourcetype=corelight_http
+>| search user_agent="-" OR user_agent="curl*" OR user_agent="python*" OR user_agent="powershell*"
+>| stats count by id.orig_h, id.resp_h, user_agent
+>```
+>
+>4. Detect abnormal File Transfers in HTTP with Mismatched MIME Types.
+>```spl
+>index=bro sourcetype=corelight_http
+>| where mime_type!="application/octet-stream" AND uri matches ".exe|.zip|.bin|.dll"
+>| stats count by id.orig_h, uri, mime_type
+>```
+>
+>5. Detect covert Channels in DNS (e.g., Data Hidden in Queries).
+>```spl
+>index=bro sourcetype=corelight_dns
+>| where length(query) > 100 OR query matches ".*[0-9a-f]{30,}.*"
+>| stats count by id.orig_h, query
+>```
+>
+>6. Detect large Amounts of Encrypted Data Sent Outbound.
+>```spl
+>index=bro sourcetype=corelight_conn
+>| where proto="tcp" AND service IN ("ssl", "https")
+>| stats sum(orig_bytes) as sent_bytes by id.orig_h, id.resp_h
+>| where sent_bytes > 500000
+>```
+></details>
 </details>
 
 <details><summary>Credential Access</summary>
@@ -294,103 +333,4 @@ index=zeek sourcetype=zeek_smb_mapping
   
 ---
 
-</details>
-
-<details><summary>Suspicious File Transfers Over SMB</summary>
-  
-```spl
-index=central_summary source=summary_smb_files filename_with_extension IN ("lsass.dmp" *.dmp "procdump.exe") 
-| stats count by src_ip, dest_ip, filename_with_extension, action 
-```
-</details>
-
-<details><summary>Execution or Transfer of Credential Dumping Tools</summary>
-  
-```spl
-index=central_summary source=summary_http_address uri IN (*procdump* *mimikatz* *lsass* *comsvcs*) 
-| stats count by src_ip, dest_ip, uri 
-
-Index=bro sourcetype=corelight_http uri IN (*procdump* *mimikatz* *lsass* *comsvcs*) 
-| stats count by src_ip, dest_ip, uri, user_agent 
-```
-</details>
-
-<details><summary>Remote Access to LSASS via RPC or SAMR</summary>
-  
-```spl
-index=bro sourcetype=corelight_rpc 
-| search program IN ("samr", "lsarpc") 
-| stats count by src_ip, dest_ip, call 
-```
-</details>
-
-<details><summary>Suspicious SMB Uploads from Admin Workstations</summary>
-  
-```spl
-index=bro sourcetype=corelight_smb_cmd command="WRITE"
-| stats count by src_ip, dest_ip, command 
-```
-</details>
-
-<details><summary>Dump Files Exfiltrated Over HTTP</summary>
-  
-```spl
-index=central_summary source=summary_http_address uri IN (*.dmp *.zip) 
-| stats count by src_ip, dest_ip, uri 
-```
-</details>
-
-##T1564 Hide Artifacts
-
-<details><summary>Detect File Transfers with Suspicious or Hidden Filenames</summary>
-  
-```spl
-index=zeek sourcetype=zeek:files 
-| where isnull(extracted) AND (filename LIKE ".%" OR filename IN ("thumbs.db", "desktop.ini")) 
-| eval risk="Possible hidden file transfer"
-| table _time, uid, source, destination, filename, mime_type, risk
-```
-</details>
-
-<details><summary>Detect Executable Files from Suspicious Directories via SMB</summary>
-  
-```spl
-index=zeek sourcetype=zeek:smb_files 
-| where filename LIKE "%.exe" AND (filename LIKE "%\\$Recycle.Bin\\%" OR filename LIKE "%\\Temp\\%") 
-| eval risk="Executable file in suspicious hidden folder"
-| table _time, id_orig_h, id_resp_h, filename, action, seen_bytes, risk
-```
-</details>
-
-<details><summary>Detect Long SSH Sessions</summary>
-  
-```spl
-index=zeek sourcetype=zeek:ssh 
-| search auth_success=true 
-| join type=inner uid [ search index=zeek sourcetype=zeek:conn ] 
-| where service=="ssh" AND duration>300 
-| eval risk="Long SSH session; check for hidden or file manipulation"
-| table _time, id_orig_h, id_resp_h, duration, auth_success, risk
-```
-</details>
-
-<details><summary>Detect Archive Files with Suspicious Naming or Locations</summary>
-  
-```spl
-index=zeek sourcetype=zeek:files 
-| where mime_type IN ("application/zip", "application/x-rar-compressed") AND filename LIKE "%.%" 
-| search filename=".%" OR filename LIKE "%\\Temp\\%" 
-| eval risk="Possible hidden archive"
-| table _time, id_orig_h, id_resp_h, filename, mime_type, risk
-```
-</details>
-
-<details><summary>Look for Uncommon File Extensions Used Over HTTP or SMB</summary>
-  
-```spl
-index=zeek sourcetype=zeek:files 
-| where mime_type="application/octet-stream" AND NOT filename LIKE "%.exe" AND NOT filename LIKE "%.dll" 
-| eval risk="Unusual binary transfer - possible renamed executable or payload"
-| table _time, filename, mime_type, id_orig_h, id_resp_h, risk
-```
 </details>
