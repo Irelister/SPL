@@ -239,14 +239,53 @@ index=zeek sourcetype=zeek_smb_mapping
 
 ><details><summary>T1041 - Exfiltration Over C2</summary>
 >
+>- T1041 often looks like normal traffic—combine these queries with known threat intel or baseline analysis.
+>- Look for patterns like regular beacons, unusual data sizes, or traffic to newly registered domains.
+>
 ><br>
 >
->1. Large Data Transfers Over HTTP
+>1. Detects DNS queries with unusually long domain names, which may be used for exfiltration.
 >```spl
+>index=bro sourcetype=corelight_dns
+>| where length(query) > 100
+>| stats count avg(length(query)) by query, orig_h, resp_h
+>| where count > 10
+>| sort -count
+>```
 >
+>2. Flags hosts repeatedly querying the same domain, which might be tunneling data.
+>```spl
+>index=bro sourcetype=corelight_dns
+>| stats count by orig_h, resp_h, query
+>| where count > 100
+>| sort -count
+>```
+>
+>3. Detects excessive outbound HTTP POST traffic, which can indicate exfiltration via web.
+>```spl
+>index=bro sourcetype=corelight_http method=POST
+>| stats count avg(resp_body_len) sum(resp_body_len) by orig_h, uri
+>| where sum(resp_body_len) > 100000
+>| sort -sum(resp_body_len)
+>```
+>
+>4. Finds sessions that last too long and transfer large amounts of data.
+>```spl
+>index=bro sourcetype=corelight_conn
+>| where proto="tcp" AND duration > 300
+>| stats count sum(orig_bytes) sum(resp_bytes) by orig_h, resp_h, service
+>| where sum(orig_bytes) > 1000000
+>| sort -sum(orig_bytes)
+>```
+>
+>5. Detect SSL/TLS Sessions With Anomalous Data Volumes.
+>```spl
+>index=bro sourcetype=corelight_ssl
+>| stats count sum(orig_bytes) sum(resp_bytes) by id.orig_h, id.resp_h, server_name
+>| where sum(orig_bytes) > 500000
+>| sort -sum(orig_bytes)
 >```
 ></details>
-
 </details>
 
 <details><summary>Impact</summary>
@@ -298,7 +337,9 @@ index=central_summary source=summary_http_address uri IN (*.dmp *.zip)
 | stats count by src_ip, dest_ip, uri 
 ```
 </details>
+
 ##T1564 Hide Artifacts
+
 <details><summary>Detect File Transfers with Suspicious or Hidden Filenames</summary>
   
 ```spl
@@ -349,19 +390,5 @@ index=zeek sourcetype=zeek:files
 | where mime_type="application/octet-stream" AND NOT filename LIKE "%.exe" AND NOT filename LIKE "%.dll" 
 | eval risk="Unusual binary transfer - possible renamed executable or payload"
 | table _time, filename, mime_type, id_orig_h, id_resp_h, risk
-```
-</details>
-
-Combine weird transfer with off process creations if possible.  
-Look for NTFS Alternate Data streams. Detectable if SMB logs show file::$DATA in the filename.
-
-
-
-<details><summary>T</summary>
-
----
-1. 
-```spl
-
 ```
 </details>
