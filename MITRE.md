@@ -50,6 +50,14 @@
   
 ---
 
+><details><summary>T1033 - System Owner & User Discovery</summary>
+>
+>```spl
+>index=zeek sourcetype=zeek_kerberos
+>| stats count by id.orig_h, id.resp_h, client, service, request_type, _time
+>```
+></details>
+
 </details>
 
 <details><summary>Lateral Movement</summary>
@@ -84,7 +92,7 @@
 
 <details><summary>Suspicious File Transfers Over SMB</summary>
   
-```plaintext
+```spl
 index=central_summary source=summary_smb_files filename_with_extension IN ("lsass.dmp" *.dmp "procdump.exe") 
 | stats count by src_ip, dest_ip, filename_with_extension, action 
 ```
@@ -92,7 +100,7 @@ index=central_summary source=summary_smb_files filename_with_extension IN ("lsas
 
 <details><summary>Execution or Transfer of Credential Dumping Tools</summary>
   
-```plaintext
+```spl
 index=central_summary source=summary_http_address uri IN (*procdump* *mimikatz* *lsass* *comsvcs*) 
 | stats count by src_ip, dest_ip, uri 
 
@@ -103,7 +111,7 @@ Index=bro sourcetype=corelight_http uri IN (*procdump* *mimikatz* *lsass* *comsv
 
 <details><summary>Remote Access to LSASS via RPC or SAMR</summary>
   
-```plaintext
+```spl
 index=bro sourcetype=corelight_rpc 
 | search program IN ("samr", "lsarpc") 
 | stats count by src_ip, dest_ip, call 
@@ -112,7 +120,7 @@ index=bro sourcetype=corelight_rpc
 
 <details><summary>Suspicious SMB Uploads from Admin Workstations</summary>
   
-```plaintext
+```spl
 index=bro sourcetype=corelight_smb_cmd command="WRITE"
 | stats count by src_ip, dest_ip, command 
 ```
@@ -120,7 +128,7 @@ index=bro sourcetype=corelight_smb_cmd command="WRITE"
 
 <details><summary>Dump Files Exfiltrated Over HTTP</summary>
   
-```plaintext
+```spl
 index=central_summary source=summary_http_address uri IN (*.dmp *.zip) 
 | stats count by src_ip, dest_ip, uri 
 ```
@@ -128,7 +136,7 @@ index=central_summary source=summary_http_address uri IN (*.dmp *.zip)
 ##T1564 Hide Artifacts
 <details><summary>Detect File Transfers with Suspicious or Hidden Filenames</summary>
   
-```plaintext
+```spl
 index=zeek sourcetype=zeek:files 
 | where isnull(extracted) AND (filename LIKE ".%" OR filename IN ("thumbs.db", "desktop.ini")) 
 | eval risk="Possible hidden file transfer"
@@ -138,7 +146,7 @@ index=zeek sourcetype=zeek:files
 
 <details><summary>Detect Executable Files from Suspicious Directories via SMB</summary>
   
-```plaintext
+```spl
 index=zeek sourcetype=zeek:smb_files 
 | where filename LIKE "%.exe" AND (filename LIKE "%\\$Recycle.Bin\\%" OR filename LIKE "%\\Temp\\%") 
 | eval risk="Executable file in suspicious hidden folder"
@@ -148,7 +156,7 @@ index=zeek sourcetype=zeek:smb_files
 
 <details><summary>Detect Long SSH Sessions</summary>
   
-```plaintext
+```spl
 index=zeek sourcetype=zeek:ssh 
 | search auth_success=true 
 | join type=inner uid [ search index=zeek sourcetype=zeek:conn ] 
@@ -160,7 +168,7 @@ index=zeek sourcetype=zeek:ssh
 
 <details><summary>Detect Archive Files with Suspicious Naming or Locations</summary>
   
-```plaintext
+```spl
 index=zeek sourcetype=zeek:files 
 | where mime_type IN ("application/zip", "application/x-rar-compressed") AND filename LIKE "%.%" 
 | search filename=".%" OR filename LIKE "%\\Temp\\%" 
@@ -171,7 +179,7 @@ index=zeek sourcetype=zeek:files
 
 <details><summary>Look for Uncommon File Extensions Used Over HTTP or SMB</summary>
   
-```plaintext
+```spl
 index=zeek sourcetype=zeek:files 
 | where mime_type="application/octet-stream" AND NOT filename LIKE "%.exe" AND NOT filename LIKE "%.dll" 
 | eval risk="Unusual binary transfer - possible renamed executable or payload"
@@ -182,19 +190,11 @@ index=zeek sourcetype=zeek:files
 Combine weird transfer with off process creations if possible.  
 Look for NTFS Alternate Data streams. Detectable if SMB logs show file::$DATA in the filename.
 
-<details><summary>T1033</summary>
-
-```plaintext
-index=zeek sourcetype=zeek_kerberos
-| stats count by id.orig_h, id.resp_h, client, service, request_type, _time
-```
-</details>
-
 <details><summary>T1041 - Exfiltration Over C2</summary>
 
 ---  
 1. Large Data Transfers Over HTTP
-```plaintext
+```spl
 
 ```
 </details>
