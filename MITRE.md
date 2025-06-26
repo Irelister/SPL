@@ -52,9 +52,10 @@
 
 ><details><summary>T1033 - System Owner & User Discovery</summary>
 >
+><br>
+>1. 
 >```spl
->index=zeek sourcetype=zeek_kerberos
->| stats count by id.orig_h, id.resp_h, client, service, request_type, _time
+>
 >```
 ></details>
 
@@ -81,6 +82,16 @@
 <details><summary>Exfiltration</summary>
   
 ---
+
+><details><summary>T1041 - Exfiltration Over C2</summary>
+>
+><br>
+>---  
+>1. Large Data Transfers Over HTTP
+>```spl
+>
+>```
+></details>
 
 </details>
 
@@ -189,15 +200,6 @@ index=zeek sourcetype=zeek:files
 
 Combine weird transfer with off process creations if possible.  
 Look for NTFS Alternate Data streams. Detectable if SMB logs show file::$DATA in the filename.
-
-<details><summary>T1041 - Exfiltration Over C2</summary>
-
----  
-1. Large Data Transfers Over HTTP
-```spl
-
-```
-</details>
 
 <details><summary>T1069 - Permission Groups Discovery</summary>
 
