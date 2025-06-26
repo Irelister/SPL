@@ -1,27 +1,27 @@
 <details><summary>Bro Query</summary>
   
-```plaintext
+```spl
 index=bro sourcetype=corelight_conn earliest= latest=now()
 ```
 </details>
 
 <details><summary>Summary Index Query</summary>
   
-```plaintext
+```spl
 index=central_summary source=summary_conn_dest earliest= latest=now()
 ```
 </details>
 
 <details><summary>List all Indexes</summary>
   
-```plaintext
+```spl
 | eventcount summarize=false index=* | dedup index | fields index
 ```
 </details>
 
 <details><summary>List Index Sources/Types w/ Timestamps</summary>
   
-```plaintext
+```spl
 | metadata type="sourcetypes" index="bro"
 | fieldformat firstTime=strftime(firstTime, "%m/%d/%y %H:%M:%S")
 | fieldformat lastTime=strftime(lastTime, "%m/%d/%y %H:%M:%S")
