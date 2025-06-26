@@ -1,0 +1,71 @@
+d=<dashboard>
+  <label>MITRE T1041 - Exfiltration Over Command and Control Channel (Zeek/Corelight)</label>
+  <description>Detect possible data exfiltration activities over C2 channels using Zeek/Corelight logs.</description>
+  <row>
+    <panel>
+      <title>Large Data Transfers via HTTP</title>
+      <chart>
+        <search>
+          <query>index="bro" sourcetype="corelight_http" method="POST" is_dest_internal_ip=false
+                | stats sum(request_body_len) as total_bytes_sent by src_ip, dest_ip, uri 
+                | where total_bytes_sent > 1000000</query>
+        </search>
+        <option name="charting.chart">column</option>
+      </chart>
+    </panel>
+
+    <panel>
+      <title>Suspicious DNS Tunneling Behavior</title>
+      <chart>
+        <search>
+          <query>index=bro sourcetype=corelight_dns 
+| where query_type_name="TXT" OR query_length &gt; 100 
+| stats count by src_ip, query</query>
+        </search>
+        <option name="charting.chart">bar</option>
+      </chart>
+    </panel>
+  </row>
+
+  <row>
+    <panel>
+      <title>Consistent Large Transfers via HTTPS</title>
+      <chart>
+        <search>
+          <query>index=bro sourcetype=corelight_conn 
+| where service="ssl" AND orig_bytes > 5000000 
+| stats count by src_ip, dest_ip, orig_bytes, dest_port</query>
+        </search>
+        <option name="charting.chart">line</option>
+      </chart>
+    </panel>
+
+    <panel>
+      <title>Unusual File Uploads to External IPs</title>
+      <chart>
+        <search>
+          <query>index=bro sourcetype=corelight_files 
+| search fuid=* 
+| lookup local=true geoip ip as id_resp_h 
+| where country != "" AND country != "United States" 
+| stats count by src_ip, dest_ip, filename, mime_type</query>
+        </search>
+        <option name="charting.chart">bar</option>
+      </chart>
+    </panel>
+  </row>
+
+  <row>
+    <panel>
+      <title>Uncommon Protocols with High Data Volume</title>
+      <chart>
+        <search>
+          <query>index=bro sourcetype=corelight_conn 
+| where NOT service IN ("http" "dns" "ssl") AND orig_bytes > 1000000 
+| stats sum(orig_bytes) as exfil_volume by src_ip, dest_ip, service</query>
+        </search>
+        <option name="charting.chart">bar</option>
+      </chart>
+    </panel>
+  </row>
+</dashboard>
