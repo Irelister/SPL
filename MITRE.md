@@ -239,6 +239,8 @@ index=zeek sourcetype=zeek_smb_mapping
 
 ><details><summary>T1041 - Exfiltration Over C2</summary>
 >
+><br>
+>
 >- T1041 often looks like normal traffic—combine these queries with known threat intel or baseline analysis.
 >- Look for patterns like regular beacons, unusual data sizes, or traffic to newly registered domains.
 >
