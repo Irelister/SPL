@@ -1,0 +1,72 @@
+<dashboard>
+  <label>MITRE T1564 - Hidden Artifacts Detection (Zeek/Corelight)</label>
+  <description>Detect signs of hidden artifact techniques in network traffic using Zeek/Corelight logs.</description>
+  <row>
+    <panel>
+      <title>Suspicious Hidden File Transfers</title>
+      <chart>
+        <search>
+          <query>index=zeek sourcetype=zeek:files 
+| where isnull(extracted) AND (filename LIKE ".%" OR filename IN ("thumbs.db", "desktop.ini")) 
+| stats count by filename, source, destination, mime_type</query>
+        </search>
+        <option name="charting.chart">bar</option>
+      </chart>
+    </panel>
+
+    <panel>
+      <title>Executables in Suspicious SMB Directories</title>
+      <chart>
+        <search>
+          <query>index=zeek sourcetype=zeek:smb_files 
+| where filename LIKE "%.exe" AND (filename LIKE "%\\$Recycle.Bin\\%" OR filename LIKE "%\\Temp\\%") 
+| stats count by filename, id_orig_h, id_resp_h</query>
+        </search>
+        <option name="charting.chart">bar</option>
+      </chart>
+    </panel>
+  </row>
+
+  <row>
+    <panel>
+      <title>Long-Lived SSH Sessions</title>
+      <chart>
+        <search>
+          <query>index=zeek sourcetype=zeek:ssh 
+| search auth_success=true 
+| join type=inner uid [ search index=zeek sourcetype=zeek:conn ] 
+| where service=="ssh" AND duration&gt;300 
+| stats count by id_orig_h, id_resp_h, duration</query>
+        </search>
+        <option name="charting.chart">line</option>
+      </chart>
+    </panel>
+
+    <panel>
+      <title>Hidden or Obfuscated Archive Transfers</title>
+      <chart>
+        <search>
+          <query>index=zeek sourcetype=zeek:files 
+| where mime_type IN ("application/zip", "application/x-rar-compressed") AND filename LIKE "%.%" 
+| search filename=".%" OR filename LIKE "%\\Temp\\%" 
+| stats count by filename, id_orig_h, id_resp_h</query>
+        </search>
+        <option name="charting.chart">bar</option>
+      </chart>
+    </panel>
+  </row>
+
+  <row>
+    <panel>
+      <title>Suspicious Binary Transfers (Renamed Executables)</title>
+      <chart>
+        <search>
+          <query>index=zeek sourcetype=zeek:files 
+| where mime_type="application/octet-stream" AND NOT filename LIKE "%.exe" AND NOT filename LIKE "%.dll" 
+| stats count by filename, id_orig_h, id_resp_h</query>
+        </search>
+        <option name="charting.chart">column</option>
+      </chart>
+    </panel>
+  </row>
+</dashboard>
