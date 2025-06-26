@@ -81,49 +81,49 @@
 >```
 ></details>
 
-<details><summary>T1505 - Server Software Component</summary>
-
-<br>
-
-1. Web shells often receive commands via POST.
-```spl
-index=bro sourcetype=corelight_http 
-| search method=POST
-| search uri IN ("*.php*", "*.aspx*", "*.jsp*", "*cmd*", "*eval*", "*shell*")
-| stats count by id.orig_h, id.resp_h, uri, user_agent, method, status_code, _time
-```
-2. Look for indicators in query strings or URIs.
-```spl
-index=bro sourcetype=corelight_http
-| search uri IN ("*cmd=*", "*exec*", "*eval*", "*shell*", "*.php", "*.asp", "*.jsp")
-| stats count by id.orig_h, id.resp_h, uri, user_agent, referrer, status_code, _time
-```
-3. Web shells are often uploaded through file upload features.
-```spl
-index=bro sourcetype=corelight_http 
-| search method=POST uri IN ("*/upload*", "*/admin*", "*/file*", "*.php*", "*.asp*")
-| stats count by id.orig_h, id.resp_h, uri, user_agent, status_code, content_type, _time
-```
-4. Newly Seen Files in Webroot (e.g., .php or .jsp)
-```spl
-index=bro sourcetype=corelight_files 
-| search filename IN ("*.php", "*.jsp", "*.asp", "*.aspx")
-| stats count by id.orig_h, id.resp_h, filename, mime_type, seen_bytes, _time
-```
-5. SMB File Writes to Webroot (If logs available)
-```spl
-index=bro sourcetype=corelight_smb_files 
-| search filename IN ("*.php", "*.asp", "*.jsp") AND action="WRITE"
-| stats count by id.orig_h, id.resp_h, filename, action, _time
-```
-6. Large response sizes from small POSTs (Shell response)
-```spl
-index=bro sourcetype=corelight_http
-| eval ratio=response_body_len/request_body_len 
-| where method="POST" AND ratio > 10
-| stats count by id.orig_h, id.resp_h, uri, user_agent, ratio, _time
-```
-</details>
+><details><summary>T1505 - Server Software Component</summary>
+>
+><br>
+>
+>1. Web shells often receive commands via POST.
+>```spl
+>index=bro sourcetype=corelight_http 
+>| search method=POST
+>| search uri IN ("*.php*", "*.aspx*", "*.jsp*", "*cmd*", "*eval*", "*shell*")
+>| stats count by id.orig_h, id.resp_h, uri, user_agent, method, status_code, _time
+>```
+>2. Look for indicators in query strings or URIs.
+>```spl
+>index=bro sourcetype=corelight_http
+>| search uri IN ("*cmd=*", "*exec*", "*eval*", "*shell*", "*.php", "*.asp", "*.jsp")
+>| stats count by id.orig_h, id.resp_h, uri, user_agent, referrer, status_code, _time
+>```
+>3. Web shells are often uploaded through file upload features.
+>```spl
+>index=bro sourcetype=corelight_http 
+>| search method=POST uri IN ("*/upload*", "*/admin*", "*/file*", "*.php*", "*.asp*")
+>| stats count by id.orig_h, id.resp_h, uri, user_agent, status_code, content_type, _time
+>```
+>4. Newly Seen Files in Webroot (e.g., .php or .jsp)
+>```spl
+>index=bro sourcetype=corelight_files 
+>| search filename IN ("*.php", "*.jsp", "*.asp", "*.aspx")
+>| stats count by id.orig_h, id.resp_h, filename, mime_type, seen_bytes, _time
+>```
+>5. SMB File Writes to Webroot (If logs available)
+>```spl
+>index=bro sourcetype=corelight_smb_files 
+>| search filename IN ("*.php", "*.asp", "*.jsp") AND action="WRITE"
+>| stats count by id.orig_h, id.resp_h, filename, action, _time
+>```
+>6. Large response sizes from small POSTs (Shell response)
+>```spl
+>index=bro sourcetype=corelight_http
+>| eval ratio=response_body_len/request_body_len 
+>| where method="POST" AND ratio > 10
+>| stats count by id.orig_h, id.resp_h, uri, user_agent, ratio, _time
+>```
+></details>
 </details>
 
 <details><summary>Privilege Escalation</summary>
