@@ -8,37 +8,37 @@
   
 ---
 
-<details><summary>T1584 - Compromise Infrastructure</summary>
-
-<br>
-
-1. Multiple Domains Resolve to the same IP.
-```spl
-index=central_summary source=summary_dns_with_answers 
-| stats dc(query) as domain_count by answer 
-| where domain_count > 10 
-```
-2. Rare JA3 and JA3S TLS Fingerprints
-```spl
-index=central_summary source=summary_ssl 
-| stats count by ja3, ja3s, dest_ip 
-| where count < 5 
-```
-3. Unusual HTTP Hosts or Repeating POSTS Requests
-```spl
-index=bro sourcetype=corelight_http 
-| search method=POST 
-| stats count by src_ip, dest_ip, host_header, uri, user_agent 
-| where count > 20 
-```
-4. High Volume, Long-Lived Peer-to-Peer Connections
-```spl
-index=bro sourcetype=corelight_conn 
-| search duration > 300 
-| stats count by src_ip, dest_ip, duration, service 
-| where count > 20 
-```
-</details>
+  <details><summary>T1584 - Compromise Infrastructure</summary>
+  
+  <br>
+  
+  1. Multiple Domains Resolve to the same IP.
+  ```spl
+  index=central_summary source=summary_dns_with_answers 
+  | stats dc(query) as domain_count by answer 
+  | where domain_count > 10 
+  ```
+  2. Rare JA3 and JA3S TLS Fingerprints
+  ```spl
+  index=central_summary source=summary_ssl 
+  | stats count by ja3, ja3s, dest_ip 
+  | where count < 5 
+  ```
+  3. Unusual HTTP Hosts or Repeating POSTS Requests
+  ```spl
+  index=bro sourcetype=corelight_http 
+  | search method=POST 
+  | stats count by src_ip, dest_ip, host_header, uri, user_agent 
+  | where count > 20 
+  ```
+  4. High Volume, Long-Lived Peer-to-Peer Connections
+  ```spl
+  index=bro sourcetype=corelight_conn 
+  | search duration > 300 
+  | stats count by src_ip, dest_ip, duration, service 
+  | where count > 20 
+  ```
+  </details>
 </details>
 
 <details><summary>Initial Access</summary>
