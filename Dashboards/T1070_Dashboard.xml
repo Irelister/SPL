@@ -1,0 +1,84 @@
+<dashboard>
+  <label>T1070 - Indicator Removal on Host (Zeek/Corelight)</label>
+  <description>Detects suspicious file deletions, admin share access, short RDP sessions, and tool downloads via Zeek/Corelight network logs.</description>
+
+  <row>
+    <panel>
+      <title>SMB File Deletions or Renames</title>
+      <chart>
+        <search>
+          <query>index=bro sourcetype=corelight_smb_files
+| where action IN ("SMB::DELETE", "SMB::RENAME")
+| stats count by id.orig_h, id.resp_h, name, action
+| sort -count</query>
+        </search>
+        <option name="charting.chart">table</option>
+      </chart>
+    </panel>
+
+    <panel>
+      <title>Access to ADMIN$, C$, IPC$ Shares</title>
+      <chart>
+        <search>
+          <query>index=bro sourcetype=corelight_smb
+| search path IN ("ADMIN$", "C$", "D$", "IPC$")
+| stats count by id.orig_h, id.resp_h, path, user</query>
+        </search>
+        <option name="charting.chart">table</option>
+      </chart>
+    </panel>
+  </row>
+
+  <row>
+    <panel>
+      <title>Short RDP Sessions (Possible Fast Cleanup)</title>
+      <chart>
+        <search>
+          <query>index=bro sourcetype=corelight_rdp
+| stats count, avg(duration) as avg_duration by id.orig_h, id.resp_h
+| where count > 3 AND avg_duration &lt; 60</query>
+        </search>
+        <option name="charting.chart">table</option>
+      </chart>
+    </panel>
+
+    <panel>
+      <title>Cleanup Tools Downloaded via HTTP</title>
+      <chart>
+        <search>
+          <query>index=bro sourcetype=corelight_http
+| search uri IN ("*sdelete*", "*wevtutil*", "*clear_event*", "*wipe*", "*rm.exe*", "*del.exe*")
+| stats count by uri, id.orig_h, id.resp_h, user_agent</query>
+        </search>
+        <option name="charting.chart">table</option>
+      </chart>
+    </panel>
+  </row>
+
+  <row>
+    <panel>
+      <title>Executable File Transfers over SMB</title>
+      <chart>
+        <search>
+          <query>index=bro sourcetype=corelight_files
+| where mime_type="application/x-dosexec"
+| stats count by id.orig_h, id.resp_h, filename, fuid</query>
+        </search>
+        <option name="charting.chart">table</option>
+      </chart>
+    </panel>
+
+    <panel>
+      <title>Write-Then-Delete Patterns in SMB</title>
+      <chart>
+        <search>
+          <query>index=bro sourcetype=corelight_smb_files
+| stats count(eval(action="SMB::WRITE")) as writes, count(eval(action="SMB::DELETE")) as deletes by id.orig_h, id.resp_h
+| where writes &gt; 10 AND deletes &gt; 5</query>
+        </search>
+        <option name="charting.chart">table</option>
+      </chart>
+    </panel>
+  </row>
+
+</dashboard>
