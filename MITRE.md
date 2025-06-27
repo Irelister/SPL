@@ -165,24 +165,48 @@
 >  
 ><br>
 >  
->1. 
+>1. Look for file deletion or renaming over SMB shares.
 >```spl
->
+>index=bro sourcetype=corelight_files OR sourcetype=corelight_smb_files
+>| where action IN ("SMB::DELETE", "SMB::RENAME") OR (seen="F" AND fuid!="-" AND is_orig=true)
+>| stats count by id.orig_h, id.resp_h, name, action
 >```
 >
->2. 
+>2. Look for connections to admin SMB shares, common when scripts or remote access tools are used for cleanup.
 >```spl
->
+>index=bro sourcetype=corelight_smb
+>| search path IN ("ADMIN$", "C$", "D$", "IPC$")
+>| stats count by id.orig_h, id.resp_h, path, user
 >```
 >
->3. 
+>3. Look for short duration RDP connections. Short bursts of RDP can indicate someone quickly connecting just to clean up.
 >```spl
->
+>index=bro sourcetype=corelight_rdp
+>| stats count, avg(duration) as avg_duration by id.orig_h, id.resp_h
+>| where count > 3 AND avg_duration < 60
 >```
 >
->4. 
+>4. Detect the downloads of cleanup tools (sdelete, wevtutil, etc.)
 >```spl
+>index=bro sourcetype=corelight_http
+>| search uri IN ("*sdelete*", "*wevtutil*", "*clear_event*", "*wipe*", "*rm.exe*", "*del.exe*")
+>| stats count by uri, id.orig_h, id.resp_h, user_agent
+>```
 >
+>5. Detect suspicious SMB file transfers including executables.
+>
+>```spl
+>index=bro sourcetype=corelight_files
+>| where mime_type="application/x-dosexec"
+>| stats count by id.orig_h, id.resp_h, filename, fuid
+>```
+>
+>6. Find bulk SMB file transfers followed by deletions.
+>
+>```spl
+>index=bro sourcetype=corelight_smb_files
+>| stats count(eval(action="SMB::WRITE")) as writes, count(eval(action="SMB::DELETE")) as deletes by id.orig_h, id.resp_h
+>| where writes > 10 AND deletes > 5
 >```
 ></details>
 >
