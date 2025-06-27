@@ -136,6 +136,31 @@
   
 ---
 
+><details><summary>T1070 - Indicator Removal</summary>
+>  
+><br>
+>  
+>1. 
+>```spl
+>
+>```
+>
+>2. 
+>```spl
+>
+>```
+>
+>3. 
+>```spl
+>
+>```
+>
+>4. 
+>```spl
+>
+>```
+></details>
+>
 ><details><summary>T1564 - Hide Artifacts</summary>
 >  
 ><br>
