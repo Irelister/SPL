@@ -239,6 +239,31 @@
 >
 >```
 ></details>
+>
+><details><summary>T1110 - Brute Force</summary>
+>  
+><br>
+>  
+>1. 
+>```spl
+>
+>```
+>
+>2. 
+>```spl
+>
+>```
+>
+>3. 
+>```spl
+>
+>```
+>
+>4. 
+>```spl
+>
+>```
+></details>
 
 </details>
 
