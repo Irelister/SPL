@@ -327,24 +327,50 @@
 >  
 ><br>
 >  
->1. 
+>1. Detects repeated failed authentication attempts over SMB.
 >```spl
->
+>index=bro sourcetype=corelight_smb
+>| where smb_cmd="SMB::SESSION_SETUP" AND smb_status!="SUCCESS"
+>| stats count by id.orig_h, id.resp_h, user
+>| where count > 10
+>| sort -count
 >```
 >
->2. 
+>2. Excessive RDP attempts with short duration may indicate brute-force behavior.
 >```spl
->
+>index=bro sourcetype=corelight_rdp
+>| stats count, avg(duration) by id.orig_h, id.resp_h
+>| where count > 10 AND avg(duration) < 10
+>| sort -count
 >```
 >
->3. 
+>3. Looks for excessive failed SSH logins — common in brute-force scenarios.
 >```spl
->
+>index=bro sourcetype=corelight_ssh
+>| stats count by id.orig_h, id.resp_h, auth_success
+>| where auth_success=false AND count > 10
 >```
 >
->4. 
+>4. If Corelight's notice.log is enabled, this flags any password guessing or brute-force detections.
 >```spl
->
+>index=bro sourcetype=corelight_notice
+>| search note IN ("SSH::Password_Guessing", "SMB::Brute_Force", "RDP::Brute_Force")
+>| stats count by src, dst, note
+>| where count > 5
+>```
+>5. Identifies a source trying many different hosts — indicative of broad brute-force scanning.
+>```spl
+>index=bro sourcetype=corelight_conn
+>| where service IN ("ssh", "rdp", "smb")
+>| stats dc(id.resp_h) as unique_targets, count by id.orig_h
+>| where unique_targets > 5 AND count > 20
+>```
+>6. FTP brute-force is less common today, but still worth monitoring.
+>```spl
+>index=bro sourcetype=corelight_ftp
+>| where reply_code >= 400
+>| stats count by id.orig_h, id.resp_h, user
+>| where count > 10
 >```
 ></details>
 
