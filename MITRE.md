@@ -384,9 +384,41 @@
 >
 ><br>
 >
->1. 
+>1. Detect access to SMB IPC$ and ADMIN$ shares (User/Session Probing).
 >```spl
+>index=bro sourcetype=corelight_smb
+>| search path IN ("IPC$", "ADMIN$")
+>| stats count by id.orig_h, id.resp_h, path, user
+>```
 >
+>2. WMI queries over RPC (TCP 135) often used to gather system and user info.
+>```spl
+>index=bro sourcetype=corelight_conn
+>| where id.resp_p=135 AND proto="tcp"
+>| stats count by id.orig_h, id.resp_h
+>| where count > 5
+>```
+>
+>3. Brief RDP logins could be used just to list users/sessions.
+>```spl
+>index=bro sourcetype=corelight_rdp
+>| stats count, avg(duration) as avg_duration by id.orig_h, id.resp_h
+>| where count > 3 AND avg_duration < 60
+>```
+>
+>4. Detect kerberos AS-REQ without TGT request (User Probing). Indicates probing for users without actually requesting tickets (Kerberoasting-related discovery).
+>```spl
+>index=bro sourcetype=corelight_kerberos
+>| where request_type="AS_REQ" AND isnull(ticket_id)
+>| stats count by id.orig_h, id.resp_h, client, service
+>```
+>
+>5. A single host reaching many others over user-relevant services — may indicate discovery activity.
+>```spl
+>index=bro sourcetype=corelight_conn
+>| where service IN ("smb", "rdp", "rpc")
+>| stats dc(id.resp_h) as unique_targets by id.orig_h
+>| where unique_targets > 5
 >```
 ></details>
 >
