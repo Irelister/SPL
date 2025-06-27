@@ -280,53 +280,79 @@
 >
 >```
 ></details>
+>
+><details><summary>T1069 - Permission Groups Discovery</summary>
+>
+><br>
+>
+>1. 
+>```spl
+>index=bro sourcetype=corelight_ldap
+>| search base_dn="CN=Users*" OR base_dn="CN=Groups*" OR query IN ("memberOf", "primaryGroupID")
+>| stats count by id.orig_h, base_dn, query, result, _time
+>```
+>2. Suspicious enumeration may cause high volumes of TGS-REQ to services like ldap, cifs, krbtgt, etc.
+>```spl
+>index=bro sourcetype=corelight_kerberos
+>| search service IN ("ldap", "krbtgt", "cifs")
+>| stats count by id.orig_h, id.resp_h, client, service, request_type, _time
+>```
+>3. Common during domain reconnaissance
+>```spl
+>index=bro sourcetype=corelight_dns 
+>| search query IN ("_ldap._tcp.*", "_kerberos._tcp.*", "*dc._msdcs*")
+>| stats count by id.orig_h, query, qtype_name, _time
+>```
+>4. These shares are often accessed during domain enumeration or GPO gathering.
+>```spl
+>index=bro sourcetype=corelight_smb_mapping
+>| search path IN ("\\*\\SYSVOL", "\\*\\NETLOGON")
+>| stats count by id.orig_h, id.resp_h, path, share_type, _time
+>```
+>5. Look for one IP performing a lot of queries.
+>```spl
+>index=bro sourcetype=corelight_ldap OR sourcetype=corelight_kerberos
+>| stats count by id.orig_h, sourcetype, _time
+>| where count > 100
+>```
+>6. Movement of Suspicious Files via SMB
+>```spl
+>index=zeek sourcetype=zeek_smb_files
+>| search filename IN ("\\windows\\system32\\config\\sam", "\\windows\\system32\\config\\system")
+>| stats count by id.orig_h, id.resp_h, filename, action, _time
+>```
+>7. Find High Volume SMB Mapping Commands
+>```spl
+>index=zeek sourcetype=zeek_smb_mapping
+>| stats count by id.orig_h, id.resp_h, path, share_type, _time
+>```
+></details>
+>
+><details><summary>T1082 - System Information Discovery</summary>
+>  
+><br>
+>  
+>1. 
+>```spl
+>
+>```
+>
+>2. 
+>```spl
+>
+>```
+>
+>3. 
+>```spl
+>
+>```
+>
+>4. 
+>```spl
+>
+>```
+></details>
 
-<details><summary>T1069 - Permission Groups Discovery</summary>
-
-<br>
-
-1. 
-```spl
-index=bro sourcetype=corelight_ldap
-| search base_dn="CN=Users*" OR base_dn="CN=Groups*" OR query IN ("memberOf", "primaryGroupID")
-| stats count by id.orig_h, base_dn, query, result, _time
-```
-2. Suspicious enumeration may cause high volumes of TGS-REQ to services like ldap, cifs, krbtgt, etc.
-```spl
-index=bro sourcetype=corelight_kerberos
-| search service IN ("ldap", "krbtgt", "cifs")
-| stats count by id.orig_h, id.resp_h, client, service, request_type, _time
-```
-3. Common during domain reconnaissance
-```spl
-index=bro sourcetype=corelight_dns 
-| search query IN ("_ldap._tcp.*", "_kerberos._tcp.*", "*dc._msdcs*")
-| stats count by id.orig_h, query, qtype_name, _time
-```
-4. These shares are often accessed during domain enumeration or GPO gathering.
-```spl
-index=bro sourcetype=corelight_smb_mapping
-| search path IN ("\\*\\SYSVOL", "\\*\\NETLOGON")
-| stats count by id.orig_h, id.resp_h, path, share_type, _time
-```
-5. Look for one IP performing a lot of queries.
-```spl
-index=bro sourcetype=corelight_ldap OR sourcetype=corelight_kerberos
-| stats count by id.orig_h, sourcetype, _time
-| where count > 100
-```
-6. Movement of Suspicious Files via SMB
-```spl
-index=zeek sourcetype=zeek_smb_files
-| search filename IN ("\\windows\\system32\\config\\sam", "\\windows\\system32\\config\\system")
-| stats count by id.orig_h, id.resp_h, filename, action, _time
-```
-7. Find High Volume SMB Mapping Commands
-```spl
-index=zeek sourcetype=zeek_smb_mapping
-| stats count by id.orig_h, id.resp_h, path, share_type, _time
-```
-</details>
 </details>
 
 <details><summary>Lateral Movement</summary>
