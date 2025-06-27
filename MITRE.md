@@ -215,6 +215,31 @@
   
 ---
 
+><details><summary>T1003 - OS Credential Dumping</summary>
+>  
+><br>
+>  
+>1. 
+>```spl
+>
+>```
+>
+>2. 
+>```spl
+>
+>```
+>
+>3. 
+>```spl
+>
+>```
+>
+>4. 
+>```spl
+>
+>```
+></details>
+
 </details>
 
 <details><summary>Discovery</summary>
