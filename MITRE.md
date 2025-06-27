@@ -54,25 +54,41 @@
 ><details><summary>T1047 - Windows Management Instrumentation</summary>
 >  
 ><br>
->  
->1. 
->```spl
 >
+>- TCP port 135 (RPC/DCOM)
+>- High ephemeral port usage after initial bind.
+>- Paired host activity (e.g., lateral movement from one internal host to another)
+>- Since WMI itself doesn't leave deep footprints in network logs, combining this with host EDR telemetry or Sysmon logs (Event ID 5861) is ideal.
+>
+>1. Detects RPC/DCOM connections to TCP port 135 — typical of remote WMI execution.
+>```spl
+>index=bro sourcetype=corelight_conn
+>| where id.resp_p=135 AND proto="tcp"
+>| stats count, sum(orig_bytes) as bytes_out, sum(resp_bytes) as bytes_in by id.orig_h, id.resp_h
+>| sort -count
 >```
 >
->2. 
+>2. Looks for excessive RPC endpoint usage, which may indicate scripted or automated WMI use.
 >```spl
->
+>index=bro sourcetype=corelight_conn
+>| where id.resp_p=135 OR id.resp_p=1024 OR id.resp_p=1025 OR id.resp_p > 1024
+>| stats count by id.orig_h, id.resp_h, id.resp_p
+>| where count > 20
 >```
 >
->3. 
+>3. Direct detection of known RPC interfaces associated with WMI — if rpc.log is enabled.
 >```spl
->
+>index=bro sourcetype=corelight_rpc
+>| search ruid IN ("WINMGMT", "WMI", "epmapper")
+>| stats count by id.orig_h, id.resp_h, ruid
 >```
 >
->4. 
+>4. Looks for short-lived, low-data RPC connections — a pattern typical of remote WMI use.
 >```spl
->
+>index=bro sourcetype=corelight_conn
+>| where id.resp_p=135 AND service!="http" AND service!="ftp"
+>| stats count by id.orig_h, id.resp_h, duration, orig_bytes, resp_bytes
+>| where duration < 10 AND orig_bytes < 1000 AND resp_bytes < 1000
 >```
 ></details>
 
