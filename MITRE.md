@@ -390,6 +390,31 @@
   
 ---
 
+><details><summary>T1560 - Archive Collected Data</summary>
+>  
+><br>
+>  
+>1. 
+>```spl
+>
+>```
+>
+>2. 
+>```spl
+>
+>```
+>
+>3. 
+>```spl
+>
+>```
+>
+>4. 
+>```spl
+>
+>```
+></details>
+
 </details>
 
 <details><summary>Command and Control</summary>
