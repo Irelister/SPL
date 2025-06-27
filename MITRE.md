@@ -51,6 +51,31 @@
   
 ---
 
+><details><summary>T1047 - Windows Management Instrumentation</summary>
+>  
+><br>
+>  
+>1. 
+>```spl
+>
+>```
+>
+>2. 
+>```spl
+>
+>```
+>
+>3. 
+>```spl
+>
+>```
+>
+>4. 
+>```spl
+>
+>```
+></details>
+
 </details>
 
 <details><summary>Persistence</summary>
