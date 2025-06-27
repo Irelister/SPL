@@ -283,25 +283,43 @@
 ><details><summary>T1003 - OS Credential Dumping</summary>
 >  
 ><br>
->  
->1. 
->```spl
 >
+>- Most of these will require host logs for verification.
+>1. Detects direct or indirect download of known credential dumping tools via HTTP.
+>```spl
+>index=bro sourcetype=corelight_http
+>| search uri IN ("*mimikatz*", "*procdump*", "*lsass*", "*pwdump*", "*.ps1")
+>| stats count by id.orig_h, id.resp_h, uri, user_agent
 >```
 >
->2. 
+>2. Detect suspicious files transfered via SMB or HTTP. Credential dump files often have .dmp, .bin, or are zipped/encoded.
 >```spl
->
+>index=bro sourcetype=corelight_files
+>| search filename IN ("*lsass*", "*dump*", "*.dmp", "*.zip", "*.ps1", "*.bin")
+>| stats count by id.orig_h, id.resp_h, filename, mime_type
 >```
 >
->3. 
+>3. Detect dump files being copied or staged for exfil — over 10MB is a red flag.
 >```spl
->
+>index=bro sourcetype=corelight_smb_files
+>| where action="SMB::WRITE"
+>| stats sum(size) as total_bytes, count by id.orig_h, id.resp_h, name
+>| where total_bytes > 10000000
+>| sort -total_bytes
 >```
 >
->4. 
+>4. Short, frequent RDP sessions — may be used to quickly run tools like Mimikatz.
 >```spl
+>index=bro sourcetype=corelight_rdp
+>| stats count, avg(duration) as avg_duration by id.orig_h, id.resp_h
+>| where count > 3 AND avg_duration < 60
+>```
 >
+>5. Detect dumping SAM/SYSTEM/SECURITY hives remotely may be visible as file access.
+>```spl
+>index=bro sourcetype=corelight_smb_files
+>| search name IN ("*\\system32\\config\\sam", "*\\system32\\config\\system", "*\\config\\security")
+>| stats count by id.orig_h, id.resp_h, name
 >```
 ></details>
 >
