@@ -1118,6 +1118,202 @@ index=bro sourcetype=corelight_http
   
 ---
 
+<details><summary>T1071 – Application Layer Protocol</summary>
+
+<br>
+
+1. HTTP POST traffic to uncommon domains
+
+```spl
+index=bro sourcetype=corelight_http method=POST
+| stats count sum(resp_body_len) as total_bytes by id.orig_h, dest
+| where count > 10 AND total_bytes > 100000
+```
+
+2. HTTPS connections with large data exchanges
+
+```spl
+index=bro sourcetype=corelight_ssl
+| stats sum(orig_bytes) as sent sum(resp_bytes) as received count by id.orig_h, id.resp_h, server_name
+| where sent > 500000
+```
+
+3. Custom protocols on high-numbered TCP ports
+
+```spl
+index=bro sourcetype=corelight_conn
+| where id.resp_p > 1024 AND service="unknown"
+| stats count,sum(orig_bytes) by id.orig_h, id.resp_h, id.resp_p
+| where count > 5
+```
+
+</details>
+
+<details><summary>T1071.001 – Web Protocols (HTTP/S)</summary>
+
+<br>
+
+1. Frequent POSTs to rare URIs
+
+```spl
+index=bro sourcetype=corelight_http method=POST
+| stats dc(uri) as uri_count by id.orig_h, dest
+| where uri_count > 5
+```
+
+2. Low-traffic HTTPS sessions (likely beacons)
+
+```spl
+index=bro sourcetype=corelight_ssl
+| stats count avg(orig_bytes) by id.orig_h, id.resp_h
+| where count > 20 AND avg(orig_bytes) < 1000
+```
+
+3. HTTP User-Agent anomalies
+
+```spl
+index=bro sourcetype=corelight_http
+| where user_agent IN ("python*", "curl*", "wget*")
+| stats count by id.orig_h, user_agent, uri
+```
+
+</details>
+
+<details><summary>T1071.002 – File Transfer Protocols (FTP, SFTP)</summary>
+
+<br>
+
+1. FTP transfers with uncommon credentials
+
+```spl
+index=bro sourcetype=corelight_ftp
+| stats count by id.orig_h, id.resp_h, user
+| where count > 5
+```
+
+2. SFTP usage on non-standard ports
+
+```spl
+index=bro sourcetype=corelight_conn
+| where service="sftp" AND id.resp_p!=22
+| stats count by id.orig_h, id.resp_h, id.resp_p
+```
+
+3. FTP sessions with significant file size
+
+```spl
+index=bro sourcetype=corelight_ftp
+| stats sum(bytes) as total_bytes by id.orig_h, id.resp_h
+| where total_bytes > 1000000
+```
+
+</details>
+
+<details><summary>T1071.003 – Mail Protocols</summary>
+
+<br>
+
+1. Outgoing SMTP with large attachments
+
+```spl
+index=bro sourcetype=corelight_smtp
+| stats sum(bytes) as total_bytes count by id.orig_h, rcpt
+| where total_bytes > 500000
+```
+
+2. SMTP to rare external domains
+
+```spl
+index=bro sourcetype=corelight_smtp
+| stats count by id.orig_h, dest_domain
+| where dest_domain NOT IN ("trusted.com","myorg.com")
+```
+
+</details>
+
+<details><summary>T1071.004 – DNS</summary>
+
+<br>
+
+1. DNS queries with unusually long subdomains
+
+```spl
+index=bro sourcetype=corelight_dns
+| where len(query)>100
+| stats count by orig_h, query
+```
+
+2. High-frequency DNS lookups to same domain
+
+```spl
+index=bro sourcetype=corelight_dns
+| stats count by orig_h, query
+| where count > 50
+```
+
+3. TXT DNS responses with large payloads
+
+```spl
+index=bro sourcetype=corelight_dns
+| where qtype_name="TXT" AND response_length>200
+| stats count by orig_h, query
+```
+
+</details>
+
+<details><summary>T1071.005 – Protocol Tunneling</summary>
+
+<br>
+
+1. High-volume traffic on uncommon TCP ports
+
+```spl
+index=bro sourcetype=corelight_conn
+| where id.resp_p>2000 AND service="unknown"
+| stats sum(orig_bytes) as bytes count by id.orig_h, id.resp_h, id.resp_p
+| where bytes>1000000
+```
+
+2. UDP tunneling patterns (constant large datagrams)
+
+```spl
+index=bro sourcetype=corelight_conn
+| where proto="udp"
+| stats avg(orig_bytes) as avg_out, count by id.orig_h, id.resp_h, id.resp_p
+| where avg_out>1000 AND count>100
+```
+
+</details>
+
+<details><summary>T1572 – Protocol Impersonation</summary>
+
+<br>
+
+1. HTTPS on non-standard ports
+
+```spl
+index=bro sourcetype=corelight_ssl
+| where id.resp_p NOT IN (443, 8443)
+| stats count by id.orig_h, id.resp_h, id.resp_p
+```
+
+2. HTTP traffic on ports other than 80 or 8080
+
+```spl
+index=bro sourcetype=corelight_http
+| where id.resp_p NOT IN (80,8080)
+| stats count by id.orig_h, id.resp_h, id.resp_p
+```
+
+3. TLS sessions with missing SNI
+
+```spl
+index=bro sourcetype=corelight_ssl
+| where isnull(server_name)
+| stats count by id.orig_h, id.resp_h
+```
+
+</details>
 </details>
 
 <details><summary>Exfiltration</summary>
