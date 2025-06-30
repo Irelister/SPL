@@ -330,7 +330,164 @@
 >| where duration < 10 AND orig_bytes < 1000 AND resp_bytes < 1000
 >```
 ></details>
-
+>
+><details><summary>T1059 – Command and Scripting Interpreter</summary>
+>
+><br>
+>
+>1. HTTP download of script-based tools
+>```spl
+>index=bro sourcetype=corelight_http
+>| search uri IN ("*.ps1", "*.vbs", "*.sh", "*.py", "*.bat")
+>| stats count by id.orig_h, uri
+>```
+>2. SMB delivery of script files
+>```spl
+>index=bro sourcetype=corelight_smb_files
+>| search filename IN ("*.ps1", "*.vbs", "*.bat", "*.sh", "*.py")
+>| stats count by id.orig_h, id.resp_h, filename
+>```
+>3. Small RPC or DCOM sessions preceding download
+>```spl
+>index=bro sourcetype=corelight_conn
+>| where id.resp_p=135 AND orig_bytes<2000 AND resp_bytes<2000
+>| stats count by id.orig_h, id.resp_h
+>```
+></details>
+>
+><details><summary>T1204 – User Execution</summary>
+>
+><br>
+>
+>1. HTTP download of executables with no automation indicator
+>```spl
+>index=bro sourcetype=corelight_http
+>| search uri IN ("*.exe", "*.scr", "*.msi")
+>| stats count by id.orig_h, uri, user_agent
+>| where user_agent!="python*" AND user_agent!="curl*" AND user_agent!="wget*"
+>```
+>2. SMB transfers of executables
+>```spl
+>index=bro sourcetype=corelight_smb_files
+>| search mime_type="application/x-dosexec"
+>| stats count by id.orig_h, id.resp_h, filename
+>```
+>3. HTTP referrals from email/generic domains
+>```spl
+>index=bro sourcetype=corelight_http
+>| search referer="http://%*"
+>| search uri IN ("*.exe","*.zip","*.msi")
+>| stats count by id.orig_h, referer, uri
+>```
+></details>
+>
+><details><summary>T1106 – Native API</summary>
+>
+><br>
+>
+>1. SMB share enumeration of system folders
+>```spl
+>index=bro sourcetype=corelight_smb
+>| search smb_cmd="SMB::TREE_CONNECT" path IN ("C$","ADMIN$")
+>| stats count by id.orig_h, id.resp_h, path
+>```
+>2. Small RPC/COM calls (indicative of native API use)
+>```spl
+>index=bro sourcetype=corelight_conn
+>| where id.resp_p=135 AND orig_bytes<1500
+>| stats count by id.orig_h, id.resp_h
+>```
+></details>
+>
+><details><summary>T1053 – Scheduled Task/Job</summary>
+>
+><br>
+>
+>1. Download of scheduler-related tools via HTTP/SMB
+>```spl
+>index=bro sourcetype=corelight_http OR sourcetype=corelight_smb_files
+>| search uri IN ("*schtasks*", "*at.exe*", "*taskschd*") OR filename IN ("schtasks.exe","at.exe")
+>| stats count by id.orig_h, uri, filename
+>```
+>2. RPC calls to scheduler services via TCP 135
+>```spl
+>index=bro sourcetype=corelight_conn
+>| where id.resp_p=135 AND proto="tcp"
+>| stats count by id.orig_h, id.resp_h
+>```
+></details>
+>
+><details><summary>T1569 – System Services</summary>
+>
+><br>
+>
+>1. HTTP/SMB retrieval of service tools (e.g., sc.exe, service.exe)
+>```spl
+>index=bro sourcetype=corelight_http OR sourcetype=corelight_smb_files
+>| search uri IN ("*sc.exe","*service.exe") OR filename IN ("sc.exe","service.exe")
+>| stats count by id.orig_h, uri, filename
+>```
+>2. DCOM/RPC RPC calls to service management via TCP 135
+>```spl
+>index=bro sourcetype=corelight_conn
+>| where id.resp_p=135 AND proto="tcp"
+>| stats count by id.orig_h, id.resp_h
+>```
+></details>
+>
+><details><summary>T1055 – Process Injection</summary>
+>
+><br>
+>
+>1. HTTP downloads of typical injection tools
+>```spl
+>index=bro sourcetype=corelight_http
+>| search uri IN ("*mimikatz*","*meterpreter*","*powershell*")
+>| stats count by id.orig_h, uri
+>```
+>2. SMB transfers of executables likely used for injection
+>```spl
+>index=bro sourcetype=corelight_smb_files
+>| search mime_type="application/x-dosexec"
+>| stats count by id.orig_h, id.resp_h, filename
+>```
+></details>
+>
+><details><summary>T1129 – Shared Modules</summary>
+>
+><br>
+>
+>1. HTTP download of DLL or shared modules
+>```spl
+>index=bro sourcetype=corelight_http
+>| search uri IN ("*.dll","*.so","*.dylib")
+>| stats count by id.orig_h, uri
+>```
+>2. SMB transfer of shared libraries
+>```spl
+>index=bro sourcetype=corelight_smb_files
+>| search filename IN ("*.dll","*.so","*.dylib")
+>| stats count by id.orig_h, id.resp_h, filename
+>```
+></details>
+>
+><details><summary>T1203 – Exploitation for Client Execution</summary>
+>
+><br>
+>
+>1. HTTP GET of malicious content (exploit patterns)
+>```spl
+>index=bro sourcetype=corelight_http
+>| search uri IN ("*.swf","*.js","*.jar","*.doc","*.pdf")
+>| stats count by id.orig_h, uri
+>```
+>2. SMB transfers of exploit files
+>```spl
+>index=bro sourcetype=corelight_smb_files
+>| search filename IN ("*.doc","*.pdf","*.js")
+>| stats count by id.orig_h, id.resp_h, filename
+>```
+></details>
 </details>
 
 <details><summary>Persistence</summary>
