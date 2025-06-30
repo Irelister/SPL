@@ -45,6 +45,48 @@
   
 ---
 
+<details><summary>T1133 - External Remote Services</summary>
+
+<br>
+
+1. Inbound RDP Connections from External IPs
+```spl
+index=bro sourcetype=corelight_conn
+| where service="rdp" AND id.orig_h NOT IN ("10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12")
+| stats count by id.orig_h, id.resp_h, duration
+```
+2. Inbound SSH Sessions from External IPs
+```spl
+index=bro sourcetype=corelight_conn
+| where service="ssh" AND id.orig_h NOT IN ("10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12")
+| stats count by id.orig_h, id.resp_h
+```
+3. Unusual External Access to SMB Services
+```spl
+index=bro sourcetype=corelight_conn
+| where service="smb" AND id.orig_h NOT IN ("10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12")
+| stats count by id.orig_h, id.resp_h
+```
+4. VPN-Like Traffic (Large Volumes to a Few Hosts)
+```spl
+index=bro sourcetype=corelight_conn
+| where proto="udp" AND id.resp_p IN (500, 4500)
+| stats sum(orig_bytes) as total_bytes, count by id.orig_h, id.resp_h
+| where total_bytes > 1000000
+```
+5. External IPs Using Remote Admin Ports (RDP, SSH, WinRM)
+```spl
+index=bro sourcetype=corelight_conn
+| where id.resp_p IN (22, 3389, 5985, 5986) AND id.orig_h NOT IN ("10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12")
+| stats count by id.orig_h, id.resp_h, id.resp_p
+```
+6. Long-Lived External Connections
+```spl
+index=bro sourcetype=corelight_conn
+| where id.orig_h NOT IN ("10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12") AND duration > 600
+| stats duration, orig_bytes, resp_bytes by id.orig_h, id.resp_h, service
+```
+</details>
 </details>
 
 <details><summary>Execution</summary>
