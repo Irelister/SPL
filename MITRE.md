@@ -1371,6 +1371,108 @@ index=bro sourcetype=corelight_ssl
 >| sort -sum(orig_bytes)
 >```
 ></details>
+
+<details><summary>T1041 – Exfiltration Over Command and Control Channel</summary>
+
+<br>
+
+1. HTTP POST to external domains with large data volumes
+
+```spl
+index=bro sourcetype=corelight_http method=POST
+| stats count sum(resp_body_len) as total_bytes by id.orig_h, dest
+| where total_bytes > 1000000
+```
+
+2. HTTPS sessions with significant outbound traffic
+
+```spl
+index=bro sourcetype=corelight_ssl
+| stats sum(orig_bytes) as sent sum(resp_bytes) as received count by id.orig_h, id.resp_h, server_name
+| where sent > 500000
+```
+
+3. DNS queries with long subdomains (potential DNS tunneling)
+
+```spl
+index=bro sourcetype=corelight_dns
+| where len(query) > 100
+| stats count by orig_h, query
+| where count > 20
+```
+
+4. Frequent small DNS TXT queries (data encoding)
+
+```spl
+index=bro sourcetype=corelight_dns
+| where qtype_name="TXT"
+| stats count by orig_h, query
+| where count > 50
+```
+
+</details>
+
+<details><summary>T1020 – Automated Exfiltration</summary>
+
+<br>
+
+1. Scheduled large file transfers via SMB
+
+```spl
+index=bro sourcetype=corelight_smb_files action="SMB::WRITE"
+| stats sum(size) as total_bytes by id.orig_h, id.resp_h, date_mday
+| where total_bytes > 100000000
+```
+
+2. Repeated daily SMB write patterns
+
+```spl
+index=bro sourcetype=corelight_smb_files action="SMB::WRITE"
+| timechart span=1d sum(size) as daily_bytes by id.orig_h
+| where daily_bytes > 50000000
+```
+
+3. Multiple FTP sessions with high data volume
+
+```spl
+index=bro sourcetype=corelight_ftp
+| stats sum(bytes) as total_bytes, count by id.orig_h, id.resp_h
+| where total_bytes > 5000000
+```
+
+</details>
+
+<details><summary>T1537 – Transfer Data to Cloud Account (Commonly Web Services)</summary>
+
+<br>
+
+1. HTTPS uploads to unknown cloud endpoints
+
+```spl
+index=bro sourcetype=corelight_http method=POST
+| where dest NOT IN ("trusted-cloud1.com","trusted-cloud2.com")
+| stats sum(resp_body_len) as total_bytes by id.orig_h, dest
+| where total_bytes > 500000
+```
+
+2. SSL sessions to AWS, Azure, or GCP subdomains
+
+```spl
+index=bro sourcetype=corelight_ssl
+| search server_name IN ("*.amazonaws.com","*.blob.core.windows.net","*.cloud.google.com")
+| stats count sum(orig_bytes) as sent by id.orig_h, server_name
+```
+
+3. Frequent TLS connections to S3 or storage endpoints
+
+```spl
+index=bro sourcetype=corelight_ssl
+| search server_name IN ("*.s3.amazonaws.com","*.storage.googleapis.com")
+| stats count by id.orig_h, server_name
+| where count > 5
+```
+
+</details>
 </details>
 
 <details><summary>Impact</summary>
