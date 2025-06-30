@@ -854,6 +854,79 @@
 >| where count > 10
 >```
 ></details>
+>
+><details><summary>T1555 – Credentials from Password Stores</summary>
+>
+><br>
+>
+>1. HTTP download of password manager exports or keyrings
+>```spl
+>index=bro sourcetype=corelight_http
+>| search uri IN ("*.kdbx","*.keychain","*.sqlite")
+>| stats count by id.orig_h, uri
+>```
+>2. SMB transfer of password store files
+>```spl
+>index=bro sourcetype=corelight_smb_files
+>| search filename IN ("*.kdbx","*.keychain","*.sqlite","*.cred")
+>| stats count by id.orig_h, id.resp_h, filename
+>```
+></details>
+>
+><details><summary>T1552 – Unsecured Credentials</summary>
+>
+><br>
+>
+>1. HTTP POST with Authorization headers in cleartext (if logs capture headers)
+>```spl
+>index=bro sourcetype=corelight_http
+>| where like(request,"*Authorization:*")
+>| stats count by id.orig_h, uri
+>```
+>2. SMB sessions using anonymous or guest (`user="ANONYMOUS"` or `"-"`)
+>```spl
+>index=bro sourcetype=corelight_smb
+>| where user IN ("ANONYMOUS","-")
+>| stats count by id.orig_h, id.resp_h, user
+>```
+></details>
+>
+><details><summary>T1558 – Steal or Forge Kerberos Tickets</summary>
+>
+><br>
+>
+>1. Multiple TGS requests for different services by a single host
+>```spl
+>index=bro sourcetype=corelight_kerberos
+>| where request_type="TGS_REQ"
+>| stats dc(service) as tgt_count by id.orig_h
+>| where tgt_count > 5
+>```
+>2. AS\_REQs without follow-up TGS or ticket granting
+>```spl
+>index=bro sourcetype=corelight_kerberos
+>| where request_type="AS_REQ" AND isnull(ticket_id)
+>| stats count by id.orig_h
+>```
+></details>
+>
+><details><summary>T1557 – Adversary-In-The-Middle</summary>
+>
+><br>
+>
+>1. DNS responses with mismatched resolved IPs (potential spoofing)
+>```spl
+>index=bro sourcetype=corelight_dns
+>| stats dc(answer) as ip_variants by query
+>| where ip_variants > 1
+>```
+>2. HTTPS sessions with expired or self-signed certificates
+>```spl
+>index=bro sourcetype=corelight_ssl
+>| where certificate_subject!="" AND certificate_issuer=certificate_subject
+>| stats count by id.orig_h, server_name
+>```
+></details>
 </details>
 
 <details><summary>Discovery</summary>
