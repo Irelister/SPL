@@ -460,6 +460,135 @@ index=bro sourcetype=corelight_conn
   
 ---
 
+<details><summary>T1548 – Abuse Elevation Control Mechanism</summary>
+
+<br>
+
+1. RPC or DCOM traffic over privileged admin ports
+
+```spl
+index=bro sourcetype=corelight_conn
+| where id.resp_p IN (135, 445, 5985, 5986)
+| stats count by id.orig_h, id.resp_h, id.resp_p
+| where count > 10
+```
+
+2. RDP sessions combined with admin share access
+
+```spl
+index=bro sourcetype=corelight_conn OR sourcetype=corelight_smb
+| eval rdp=service="rdp", admin_access=(path IN ("ADMIN$", "C$"))
+| stats count by id.orig_h, rdp, admin_access
+| where rdp=1 AND admin_access=1
+```
+
+3. WMI queries to admin shares or privileged hosts
+
+```spl
+index=bro sourcetype=corelight_conn
+| where id.resp_p=135 OR service="smb"
+| stats count by id.orig_h, id.resp_h, service
+| where count > 5
+```
+
+</details>
+
+<details><summary>T1055 – Process Injection</summary>
+
+*(Note: network detection here is indirect—watch for tool downloads or RPC commands)*
+
+<br>
+
+1. Tools commonly used for process injection downloaded over HTTP
+
+```spl
+index=bro sourcetype=corelight_http
+| search uri IN ("*mimikatz*","*powersploit*","*meterpreter*")
+| stats count by id.orig_h, uri
+```
+
+2. Executable transfers via SMB
+
+```spl
+index=bro sourcetype=corelight_files
+| search filename IN ("*.exe","*.dll","*.sys")
+| stats count by id.orig_h, id.resp_h, filename
+```
+
+3. DCOM/RPC sessions with small data transfers (possible remote execution)
+
+```spl
+index=bro sourcetype=corelight_conn
+| where id.resp_p=135 AND orig_bytes<1000 AND resp_bytes<1000
+| stats count by id.orig_h, id.resp_h
+```
+
+</details>
+
+<details><summary>T1134 – Access Token Manipulation</summary>
+
+*(Host-level mostly, but monitor network behavior with impersonated sessions)*
+
+<br>
+
+1. New SMB sessions with different user context
+
+```spl
+index=bro sourcetype=corelight_smb
+| stats dc(user) as distinct_users by id.orig_h, id.resp_h
+| where distinct_users > 1
+```
+
+2. RDP sessions switching user accounts
+
+```spl
+index=bro sourcetype=corelight_rdp
+| stats dc(user) as distinct_users by id.orig_h, id.resp_h
+| where distinct_users > 1
+```
+
+3. Multiple Kerberos ticket requests across services
+
+```spl
+index=bro sourcetype=corelight_kerberos
+| stats dc(request_type) as ticket_types by id.orig_h
+| where ticket_types > 1
+```
+
+</details>
+
+<details><summary>T1548.002 – Bypass User Account Control</summary>
+
+*(Network artifacts are weak, but you can monitor related behaviors)*
+
+<br>
+
+1. Download of UAC bypass tools
+
+```spl
+index=bro sourcetype=corelight_http
+| search uri IN ("*uacme*","*tater*","*elevator*")
+| stats count by id.orig_h, uri
+```
+
+2. DCOM/RPC with frequent callbacks
+
+```spl
+index=bro sourcetype=corelight_conn
+| where id.resp_p=135 AND duration < 10
+| stats count by id.orig_h, id.resp_h
+```
+
+3. SMB access to system folders or admin shares
+
+```spl
+index=bro sourcetype=corelight_smb
+| search path IN ("C$","ADMIN$")
+| stats count by id.orig_h, path
+```
+
+</details>
+
 </details>
 
 <details><summary>Defense Evasion</summary>
