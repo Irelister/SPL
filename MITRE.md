@@ -45,45 +45,171 @@
   
 ---
 
-<details><summary>T1133 - External Remote Services</summary>
+<details><summary><strong>T1190 – Exploit Public-Facing Application</strong></summary>
 
 <br>
 
-1. Inbound RDP Connections from External IPs
+1. **HTTP 500–599 Errors on External Apps**
+
+```spl
+index=bro sourcetype=corelight_http
+| where status>=500 AND status<600
+| stats count by id.orig_h, uri, status
+| sort -count
+```
+
+2. **Suspicious POST Requests to Unknown URIs**
+
+```spl
+index=bro sourcetype=corelight_http method=POST
+| where uri!="*" AND uri!="/"
+| stats count by id.orig_h, uri
+| where count > 20
+```
+
+3. **High Data POSTs to External Apps**
+
+```spl
+index=bro sourcetype=corelight_http method=POST
+| stats sum(resp_body_len) as data_sent count by id.orig_h, uri
+| where data_sent>1000000
+```
+</details>
+
+<details><summary><strong>T1078 – Valid Accounts</strong></summary>
+
+<br>
+
+1. **Successful Logins via RDP**
+
+```spl
+index=bro sourcetype=corelight_rdp
+| stats count, avg(duration) as avg_duration by id.orig_h, id.resp_h
+| where count > 0
+```
+
+2. **Successful SSH Connections**
+
+```spl
+index=bro sourcetype=corelight_ssh auth_success=true
+| stats count by id.orig_h, id.resp_h
+```
+
+3. **SMB Logins Without Failures**
+
+```spl
+index=bro sourcetype=corelight_smb smb_cmd="SMB::SESSION_SETUP" smb_status="SUCCESS"
+| stats count by id.orig_h, id.resp_h, user
+```
+</details>
+
+<details><summary><strong>T1566 – Phishing</strong></summary>
+
+<br>
+
+1. **HTTP/S Download of Executable Attachments**
+
+```spl
+index=bro sourcetype=corelight_http
+| search uri IN ("*.exe","*.scr","*.vbs","*.zip")
+| stats count by id.orig_h, uri
+```
+
+2. **Email Attachment URLs (If SMTP Logging Exists)**
+
+```spl
+index=bro sourcetype=corelight_smtp
+| search uri IN ("*.exe","*.zip","*.scr")
+| stats count by id.orig_h, uri
+```
+
+3. **Suspicious HTTP POST to Rare Domains**
+
+```spl
+index=bro sourcetype=corelight_http method=POST
+| stats dc(uri) as uri_count by id.orig_h, dest
+| where uri_count=1 AND dest!="trusted.domain"
+```
+</details>
+
+<details><summary><strong>T1199 – Trusted Relationship</strong></summary>
+
+<br>
+
+1. **Inbound VPN-Like UDP Traffic**
+
 ```spl
 index=bro sourcetype=corelight_conn
-| where service="rdp" AND id.orig_h NOT IN ("10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12")
+| where proto="udp" AND id.resp_p IN (1194, 500, 4500)
+| stats sum(orig_bytes) as bytes count by id.orig_h, id.resp_h
+| where count>0
+```
+
+2. **External TLS Sessions Into Perimeter**
+
+```spl
+index=bro sourcetype=corelight_ssl
+| where id.orig_h NOT IN ("10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12")
+| stats count by id.orig_h, id.resp_h, server_name
+```
+
+3. **Inbound RDP From External Networks**
+
+```spl
+index=bro sourcetype=corelight_conn service="rdp"
+| where id.orig_h NOT IN ("10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12")
+| stats count by id.orig_h, id.resp_h
+```
+</details>
+
+<details><summary><strong>T1133 – External Remote Services</strong></summary>
+
+<br>
+
+1. **Inbound RDP Connections from External IPs**
+
+```spl
+index=bro sourcetype=corelight_conn
+| where service="rdp" AND id.orig_h NOT IN ("10.0.0.0/8","192.168.0.0/16","172.16.0.0/12")
 | stats count by id.orig_h, id.resp_h, duration
 ```
-2. Inbound SSH Sessions from External IPs
+
+2. **Inbound SSH Sessions from External IPs**
+
 ```spl
 index=bro sourcetype=corelight_conn
-| where service="ssh" AND id.orig_h NOT IN ("10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12")
+| where service="ssh" AND id.orig_h NOT IN ("10.0.0.0/8","192.168.0.0/16","172.16.0.0/12")
 | stats count by id.orig_h, id.resp_h
 ```
-3. Unusual External Access to SMB Services
+
+3. **External Access to SMB from Outside**
+
 ```spl
 index=bro sourcetype=corelight_conn
-| where service="smb" AND id.orig_h NOT IN ("10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12")
+| where service="smb" AND id.orig_h NOT IN ("10.0.0.0/8","192.168.0.0/16","172.16.0.0/12")
 | stats count by id.orig_h, id.resp_h
 ```
-4. VPN-Like Traffic (Large Volumes to a Few Hosts)
+
+4. **VPN-Like UDP Traffic (e.g., IPsec 500/4500)**
+
 ```spl
 index=bro sourcetype=corelight_conn
-| where proto="udp" AND id.resp_p IN (500, 4500)
+| where proto="udp" AND id.resp_p IN (500,4500)
 | stats sum(orig_bytes) as total_bytes, count by id.orig_h, id.resp_h
 | where total_bytes > 1000000
 ```
-5. External IPs Using Remote Admin Ports (RDP, SSH, WinRM)
+5. **Remote Admin Ports (22,3389,5985,5986) From External**
 ```spl
 index=bro sourcetype=corelight_conn
-| where id.resp_p IN (22, 3389, 5985, 5986) AND id.orig_h NOT IN ("10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12")
+| where id.resp_p IN (22,3389,5985,5986)
+  AND id.orig_h NOT IN ("10.0.0.0/8","192.168.0.0/16","172.16.0.0/12")
 | stats count by id.orig_h, id.resp_h, id.resp_p
 ```
-6. Long-Lived External Connections
+6. **Long-Lived Connections from External**
 ```spl
 index=bro sourcetype=corelight_conn
-| where id.orig_h NOT IN ("10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12") AND duration > 600
+| where id.orig_h NOT IN ("10.0.0.0/8","192.168.0.0/16","172.16.0.0/12")
+  AND duration > 600
 | stats duration, orig_bytes, resp_bytes by id.orig_h, id.resp_h, service
 ```
 </details>
