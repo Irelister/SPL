@@ -1447,31 +1447,25 @@ index=bro sourcetype=corelight_ftp
 <br>
 
 1. HTTPS uploads to unknown cloud endpoints
-
 ```spl
 index=bro sourcetype=corelight_http method=POST
 | where dest NOT IN ("trusted-cloud1.com","trusted-cloud2.com")
 | stats sum(resp_body_len) as total_bytes by id.orig_h, dest
 | where total_bytes > 500000
 ```
-
 2. SSL sessions to AWS, Azure, or GCP subdomains
-
 ```spl
 index=bro sourcetype=corelight_ssl
 | search server_name IN ("*.amazonaws.com","*.blob.core.windows.net","*.cloud.google.com")
 | stats count sum(orig_bytes) as sent by id.orig_h, server_name
 ```
-
 3. Frequent TLS connections to S3 or storage endpoints
-
 ```spl
 index=bro sourcetype=corelight_ssl
 | search server_name IN ("*.s3.amazonaws.com","*.storage.googleapis.com")
 | stats count by id.orig_h, server_name
 | where count > 5
 ```
-
 </details>
 </details>
 
@@ -1479,4 +1473,148 @@ index=bro sourcetype=corelight_ssl
   
 ---
 
+<details><summary>T1486 – Data Encrypted for Impact</summary>
+
+<br>
+
+1. Sudden spike in SMB write and delete actions
+```spl
+index=bro sourcetype=corelight_smb_files
+| stats count(eval(action="SMB::WRITE")) as writes, count(eval(action="SMB::DELETE")) as deletes by id.orig_h, id.resp_h
+| where writes > 100 AND deletes > 50
+```
+2. SMB writes followed by file renames or unusual extensions
+```spl
+index=bro sourcetype=corelight_smb_files
+| where filename IN ("*.locked", "*.encrypted", "*.crypt", "*.enc")
+| stats count by id.orig_h, id.resp_h, filename
+```
+3. Sharp increase in file modification across shares
+```spl
+index=bro sourcetype=corelight_smb_files
+| timechart span=10m count by id.orig_h
+```
+</details>
+
+<details><summary>T1490 – Inhibit System Recovery</summary>
+
+<br>
+
+1. File deletes in recovery or backup directories via SMB
+```spl
+index=bro sourcetype=corelight_smb_files
+| search action="SMB::DELETE"
+| where path IN ("*/System Volume Information/*", "*/backup/*", "*/Recovery/*")
+| stats count by id.orig_h, id.resp_h, path
+```
+2. Delete or access to shadow copies over SMB
+```spl
+index=bro sourcetype=corelight_smb_files
+| search filename IN ("vssadmin.exe", "wbadmin.exe", "*shadow*")
+| stats count by id.orig_h, filename
+```
+</details>
+
+<details><summary>T1485 – Data Destruction</summary>
+
+<br>
+
+1. High-volume file deletions via SMB
+```spl
+index=bro sourcetype=corelight_smb_files
+| where action="SMB::DELETE"
+| stats count by id.orig_h, id.resp_h
+| where count > 100
+```
+2. Deletion of specific file types (e.g., .doc, .xls)
+```spl
+index=bro sourcetype=corelight_smb_files
+| where action="SMB::DELETE" AND filename IN ("*.doc", "*.xls", "*.pdf")
+| stats count by id.orig_h, filename
+```
+3. Pattern of write → delete to same path
+```spl
+index=bro sourcetype=corelight_smb_files
+| stats count(eval(action="SMB::WRITE")) as writes, count(eval(action="SMB::DELETE")) as deletes by id.orig_h, id.resp_h
+| where writes > 0 AND deletes > 0
+```
+</details>
+
+<details><summary>T1491 – Defacement</summary>
+
+<br>
+
+1. Web server uploads to index or homepage files
+```spl
+index=bro sourcetype=corelight_http method=POST
+| search uri IN ("/index.html", "/index.php", "/home.html")
+| stats count by id.orig_h, uri
+```
+2. HTTP POST to web directories with script extensions
+```spl
+index=bro sourcetype=corelight_http method=POST
+| where uri IN ("*.php", "*.jsp", "*.aspx")
+| stats count by id.orig_h, uri
+```
+3. Web shell or script file written via SMB
+```spl
+index=bro sourcetype=corelight_smb_files
+| where filename IN ("*.php", "*.asp", "*.jsp")
+| stats count by id.orig_h, id.resp_h, filename
+```
+</details>
+
+<details><summary>T1499 – Endpoint Denial of Service</summary>
+
+<br>
+
+1. Repeated SMB sessions with maxed-out connections
+```spl
+index=bro sourcetype=corelight_conn
+| where service="smb"
+| stats count by id.orig_h, id.resp_h
+| where count > 100
+```
+2. Large-volume UDP floods (e.g., DNS, NTP, SSDP)
+```spl
+index=bro sourcetype=corelight_conn
+| where proto="udp" AND id.resp_p IN (53, 123, 1900)
+| stats sum(orig_bytes) as total_bytes by id.orig_h, id.resp_h
+| where total_bytes > 10000000
+```
+3. TCP SYN floods without handshake completion
+```spl
+index=bro sourcetype=corelight_conn
+| where proto="tcp" AND state="S0"
+| stats count by id.orig_h, id.resp_h
+| where count > 100
+```
+</details>
+
+<details><summary>T1498 – Network Denial of Service</summary>
+
+<br>
+
+1. ICMP floods to internal infrastructure
+```spl
+index=bro sourcetype=corelight_icmp
+| where icmp_type=8
+| stats count by id.orig_h, id.resp_h
+| where count > 100
+```
+2. High-rate TCP SYNs to specific service
+```spl
+index=bro sourcetype=corelight_conn
+| where proto="tcp" AND state="S0"
+| stats count by id.orig_h, id.resp_h, id.resp_p
+| where count > 200
+```
+3. Large bandwidth UDP flows to single target
+```spl
+index=bro sourcetype=corelight_conn
+| where proto="udp"
+| stats sum(orig_bytes) as bytes_sent by id.orig_h, id.resp_h
+| where bytes_sent > 10000000
+```
+</details>
 </details>
