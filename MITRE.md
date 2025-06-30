@@ -2,6 +2,127 @@
   
 ---
 
+<details><summary>T1595 – Active Scanning</summary>
+
+<br>
+
+1. High-volume connection attempts (port scanning)
+
+```spl
+index=bro sourcetype=corelight_conn
+| stats dc(id.resp_p) as ports_scanned, count by id.orig_h
+| where ports_scanned > 50 AND count > 100
+```
+
+2. Many TCP SYNs with no responses (S0 state)
+
+```spl
+index=bro sourcetype=corelight_conn
+| where proto="tcp" AND state="S0"
+| stats count by id.orig_h, id.resp_h
+| where count > 20
+```
+
+3. Zeek notices for scanning behavior
+
+```spl
+index=bro sourcetype=corelight_notice
+| search note="SCAN::Port_Scan"
+| stats count by src
+```
+
+</details>
+
+<details><summary>T1593 – Search Open Technical Databases (OSINT)</summary>
+
+<br>
+
+1. Outbound DNS queries to OSINT sites
+
+```spl
+index=bro sourcetype=corelight_dns
+| search query IN ("*.whois.com", "*.shodan.io", "*.censys.io")
+| stats count by orig_h, query
+```
+
+2. HTTP requests to recon tools
+
+```spl
+index=bro sourcetype=corelight_http
+| search host IN ("shodan.io", "censys.io", "intelx.io")
+| stats count by id.orig_h, host, uri
+```
+
+3. SSL connections to public certificate search sites
+
+```spl
+index=bro sourcetype=corelight_ssl
+| search server_name IN ("*.crt.sh", "*.censys.io")
+| stats count by id.orig_h, server_name
+```
+
+</details>
+
+<details><summary>T1592 – Gather Victim Host Information</summary>
+
+<br>
+
+1. SMB enumeration of shares or host info
+
+```spl
+index=bro sourcetype=corelight_smb
+| search smb_cmd="SMB::TREE_CONNECT" OR smb_cmd="SMB::QUERY_INFORMATION"
+| stats count by id.orig_h, id.resp_h, smb_cmd
+```
+
+2. RPC or WMI behavior (port 135)
+
+```spl
+index=bro sourcetype=corelight_conn
+| where id.resp_p=135 AND proto="tcp"
+| stats count by id.orig_h, id.resp_h
+```
+
+3. Kerberos TGS requests to many systems
+
+```spl
+index=bro sourcetype=corelight_kerberos
+| where request_type="TGS_REQ"
+| stats dc(id.resp_h) as host_count by id.orig_h
+| where host_count > 5
+```
+
+</details>
+
+<details><summary>T1598 – Gather Victim Network Information</summary>
+
+<br>
+
+1. ICMP echo requests (ping sweep)
+
+```spl
+index=bro sourcetype=corelight_icmp
+| where icmp_type=8
+| stats count by id.orig_h, id.resp_h
+| where count > 20
+```
+
+2. Unusual DNS query types (ANY, TXT)
+
+```spl
+index=bro sourcetype=corelight_dns
+| where qtype_name IN ("TXT", "ANY")
+| stats count by orig_h, query, qtype_name
+```
+
+3. Access to infrastructure ports (SNMP, Syslog, Telnet)
+
+```spl
+index=bro sourcetype=corelight_conn
+| where id.resp_p IN (161, 162, 514, 23)
+| stats count by id.orig_h, id.resp_h, id.resp_p
+```
+</details>
 </details>
 
 <details><summary>Resource Development</summary>
