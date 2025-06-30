@@ -57,6 +57,7 @@ index="bro" sourcetype="corelight_conn" dest_ip=<IP> OR src_ip=<IP> earliest=<fi
 <details><summary>Domain Controllers</summary>
 
 This query returns a list of IPs recieving Kerberos Authentication Service (AS) requests. Domain Controllers recieve AS requests in order to provide authorized users a Ticket-Granting-Ticket (TGT), which enables the user to access a protected service.
+- [MS Doc's on Kerberos](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-kile/b4af186e-b2ff-43f9-b18e-eedb366abf13)
 ```spl
 index=bro sourcetype=corelight_kerberos request_type=AS success=true
 | table app, dest_ip 
