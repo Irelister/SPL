@@ -918,6 +918,169 @@ index=bro sourcetype=corelight_smb
   
 ---
 
+<details><summary>T1021 – Remote Services</summary>
+
+<br>
+
+1. SMB session access across internal hosts
+
+```spl
+index=bro sourcetype=corelight_smb
+| stats count by id.orig_h, id.resp_h, user
+| where count > 5
+```
+
+2. RDP sessions with multiple internal destinations
+
+```spl
+index=bro sourcetype=corelight_rdp
+| stats dc(id.resp_h) as targets, count by id.orig_h
+| where targets > 1 AND count > 5
+```
+
+3. SSH connections between internal systems
+
+```spl
+index=bro sourcetype=corelight_ssh auth_success=true
+| stats count by id.orig_h, id.resp_h
+| where count > 3
+```
+
+</details>
+
+<details><summary>T1021.001 – Remote Services: SMB/Windows Admin Shares</summary>
+
+<br>
+
+1. Writes to admin shares on multiple hosts
+
+```spl
+index=bro sourcetype=corelight_smb_files
+| stats count(eval(action="SMB::WRITE")) as writes by id.orig_h, id.resp_h
+| where writes > 10
+```
+
+2. SMB TREE\_CONNECT followed by WRITE or DELETE
+
+```spl
+index=bro sourcetype=corelight_smb
+| stats count(eval(smb_cmd="SMB::TREE_CONNECT")) as connects, count(eval(action="SMB::WRITE")) as writes by id.orig_h, id.resp_h
+| where connects > 1 AND writes > 1
+```
+
+</details>
+
+<details><summary>T1021.002 – Remote Services: SMB/Windows Admin Shares</summary>
+
+<br>
+
+1. SMB DELETE actions across multiple hosts
+
+```spl
+index=bro sourcetype=corelight_smb_files
+| stats count(eval(action="SMB::DELETE")) as deletes by id.orig_h, id.resp_h
+| where deletes > 5
+```
+
+2. Enumeration of ADMIN\$, C\$, IPC\$ shares across hosts
+
+```spl
+index=bro sourcetype=corelight_smb
+| search path IN ("ADMIN$","C$","IPC$")
+| stats dc(id.resp_h) as hosts_accessed by id.orig_h
+| where hosts_accessed > 1
+```
+
+</details>
+
+<details><summary>T1021.004 – Remote Services: SSH</summary>
+
+<br>
+
+1. Successful SSH connections to multiple hosts
+
+```spl
+index=bro sourcetype=corelight_ssh auth_success=true
+| stats dc(id.resp_h) as targets by id.orig_h
+| where targets > 2
+```
+
+2. Frequent short SSH sessions between internal systems
+
+```spl
+index=bro sourcetype=corelight_ssh
+| stats count(avg(duration)) as avg_duration by id.orig_h, id.resp_h
+| where count > 5 AND avg_duration < 30
+```
+
+</details>
+
+<details><summary>T1021.005 – Remote Services: VNC</summary>
+
+<br>
+
+1. VNC sessions detected (usually TCP ports 5900–5902)
+
+```spl
+index=bro sourcetype=corelight_conn
+| where id.resp_p IN (5900,5901,5902)
+| stats count by id.orig_h, id.resp_h, id.resp_p
+```
+
+2. Multiple VNC connections from same origin
+
+```spl
+index=bro sourcetype=corelight_conn
+| where id.resp_p IN (5900,5901,5902)
+| stats dc(id.resp_h) as targets by id.orig_h
+| where targets > 1
+```
+
+</details>
+
+<details><summary>T1021.006 – Remote Services: RDP</summary>
+
+<br>
+
+1. RDP sessions to various internal hosts
+
+```spl
+index=bro sourcetype=corelight_rdp
+| stats dc(id.resp_h) as hosts_accessed by id.orig_h
+| where hosts_accessed > 1
+```
+
+2. RDP sessions with rapid logins (suspicious)
+
+```spl
+index=bro sourcetype=corelight_rdp
+| stats count, avg(duration) as avg_duration by id.orig_h, id.resp_h
+| where count > 5 AND avg_duration < 30
+```
+
+</details>
+
+<details><summary>T1570 – Lateral Tool Transfer</summary>
+
+<br>
+
+1. Transfers of executables via SMB
+
+```spl
+index=bro sourcetype=corelight_smb_files
+| search mime_type="application/x-dosexec"
+| stats count by id.orig_h, id.resp_h, filename
+```
+
+2. Downloads of tools (e.g., psexec) via HTTP
+
+```spl
+index=bro sourcetype=corelight_http
+| search uri IN ("*psexec*","*winexe*","*plink*")
+| stats count by id.orig_h, uri
+```
+
+</details>
 </details>
 
 <details><summary>Collection</summary>
