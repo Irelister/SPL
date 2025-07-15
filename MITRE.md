@@ -1018,28 +1018,28 @@
 >```
 ></details>
 >
-><details><summary>T1082 - System Information Discovery</summary>
->  
+><details><summary>T1082 – System Information Discovery</summary>
+>
 ><br>
->  
->1. 
->```spl
 >
+>1. RPC or DCE-RPC connections on TCP/135 (host/service enumeration)
+>```spl
+>index=bro sourcetype=corelight_conn
+>| where id.resp_p=135 AND proto="tcp"
+>| stats count by id.orig_h, id.resp_h
 >```
->
->2. 
+>2. SMB share enumeration of admin/system shares
 >```spl
->
+>index=bro sourcetype=corelight_smb
+>| where smb_cmd="SMB::TREE_CONNECT" AND path IN ("IPC$","ADMIN$","C$")
+>| stats count by id.orig_h, id.resp_h, path
 >```
->
->3. 
+>3. Repeated short SMB connections to multiple hosts (probing)
 >```spl
->
->```
->
->4. 
->```spl
->
+>index=bro sourcetype=corelight_conn
+>| where service="smb" AND duration < 5
+>| stats dc(id.resp_h) as probed_hosts by id.orig_h
+>| where probed_hosts > 5
 >```
 ></details>
 </details>
